@@ -4,19 +4,23 @@
     <aside class="sidebar" :class="{ 'collapsed': !isSidebarOpen }">
       <div class="sidebar-inner">
         <!-- ... 这里保留原本的所有侧边栏内容 ... -->
-        
+
         <!-- 测试音频按钮 -->
         <div class="row">
-          <button class="btn btn-default">测试音频</button>
+          <button class="btn btn-default" @click="handlePlayTestAudio">测试音频</button>
         </div>
-        
+
         <!-- 场景选择 -->
         <div class="row control-group">
-          <label>选择已发布场景：</label>
+          <label>选择数字人模型：</label>
           <div class="flex-row">
-            <select v-model="selectedScene" class="form-select">
-              <option value="haru">关爱老婆数字人 (Haru)</option>
-              <option value="other">其他场景...</option>
+            <select v-model="selectedScene" class="form-select" ref="selected">
+              <option value="eva">EVA RIN</option>
+              <option value="hiyori">Hiyori</option>
+              <option value="kei">kei_vowels_pro</option>
+              <option value="march7th">March 7th</option>
+              <option value="nova">Nova</option>
+              <option value="pachan">Pachan</option>
             </select>
             <button class="btn btn-default">更新场景</button>
           </div>
@@ -45,11 +49,7 @@
               <input type="text" v-model="chatInput" class="form-input" placeholder="输入消息..." />
               <button class="btn btn-default" @click="sendMessage">发送消息</button>
             </div>
-            <textarea 
-              class="form-textarea readonly" 
-              readonly 
-              v-model="chatResponse"
-            ></textarea>
+            <textarea class="form-textarea readonly" readonly v-model="chatResponse"></textarea>
           </div>
         </div>
 
@@ -57,10 +57,7 @@
         <div class="card">
           <div class="card-header">语音合成</div>
           <div class="card-body">
-            <textarea 
-              class="form-textarea mb-2" 
-              v-model="ttsInput"
-            ></textarea>
+            <textarea class="form-textarea mb-2" v-model="ttsInput"></textarea>
             <div class="flex-row button-group">
               <button class="btn btn-default">并行推理</button>
               <button class="btn btn-default">流式推理</button>
@@ -73,12 +70,7 @@
     </aside>
 
     <!-- ★ 重点：按钮移到了这里，并根据状态控制位置 -->
-    <div 
-      class="toggle-btn" 
-      :class="{ 'collapsed': !isSidebarOpen }" 
-      @click="toggleSidebar" 
-      title="切换侧边栏"
-    >
+    <div class="toggle-btn" :class="{ 'collapsed': !isSidebarOpen }" @click="toggleSidebar" title="切换侧边栏">
       <span>{{ isSidebarOpen ? '❮' : '❯' }}</span>
     </div>
 
@@ -88,28 +80,19 @@
       <div class="top-bar">
         <span>调整大小: {{ modelSize }}</span>
         <div class="slider-container">
-          <input 
-            type="range" 
-            min="0.5" 
-            max="3.0" 
-            step="0.1" 
-            v-model="modelSize" 
-            class="slider"
-          />
+          <input type="range" min="0.5" max="3.0" step="0.1" v-model="modelSize" class="slider" />
         </div>
       </div>
 
       <!-- 模型展示区 -->
       <div class="model-viewport">
-        <div 
-          class="character-wrapper" 
-          :style="{ 
-            transform: `scale(${modelSize / 2}) translate(${characterPosition.x}px, ${characterPosition.y}px)`,
-            cursor: isDragging ? 'grabbing' : 'grab'
-          }"
-          @mousedown="startDrag"
-        >
-           <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Haru&clothing=blazerAndShirt&hairColor=2c1b18" alt="Character" class="character-img" />
+        <div class="character-wrapper" :style="{
+          transform: `scale(${modelSize / 2}) translate(${characterPosition.x}px, ${characterPosition.y}px)`,
+          cursor: isDragging ? 'grabbing' : 'grab'
+        }" @mousedown="startDrag">
+          <div class="live2d-container" ref="live2dContainer">
+            <canvas ref="canvas" id="live2d-canvas"></canvas>  
+          </div>
         </div>
         <div class="subtitle">怎么去发布和上架</div>
       </div>
@@ -118,7 +101,8 @@
     <!-- 1. 悬浮触发按钮 -->
     <button class="ai-float-btn" @click="toggleAISidebar">
       <svg class="ai-icon" viewBox="0 0 24 24">
-        <path d="M12,2A2,2 0 0,1 14,4C14,4.74 13.6,5.39 13,5.73V7H14A7,7 0 0,1 21,14H22A1,1 0 0,1 23,15V18A1,1 0 0,1 22,19H21V20A2,2 0 0,1 19,22H5A2,2 0 0,1 3,20V19H2A1,1 0 0,1 1,18V15A1,1 0 0,1 2,14H3A7,7 0 0,1 10,7H11V5.73C10.4,5.39 10,4.74 10,4A2,2 0 0,1 12,2M7.5,13A2.5,2.5 0 0,0 5,15.5A2.5,2.5 0 0,0 7.5,18A2.5,2.5 0 0,0 10,15.5A2.5,2.5 0 0,0 7.5,13M16.5,13A2.5,2.5 0 0,0 14,15.5A2.5,2.5 0 0,0 16.5,18A2.5,2.5 0 0,0 19,15.5A2.5,2.5 0 0,0 16.5,13Z" />
+        <path
+          d="M12,2A2,2 0 0,1 14,4C14,4.74 13.6,5.39 13,5.73V7H14A7,7 0 0,1 21,14H22A1,1 0 0,1 23,15V18A1,1 0 0,1 22,19H21V20A2,2 0 0,1 19,22H5A2,2 0 0,1 3,20V19H2A1,1 0 0,1 1,18V15A1,1 0 0,1 2,14H3A7,7 0 0,1 10,7H11V5.73C10.4,5.39 10,4.74 10,4A2,2 0 0,1 12,2M7.5,13A2.5,2.5 0 0,0 5,15.5A2.5,2.5 0 0,0 7.5,18A2.5,2.5 0 0,0 10,15.5A2.5,2.5 0 0,0 7.5,13M16.5,13A2.5,2.5 0 0,0 14,15.5A2.5,2.5 0 0,0 16.5,18A2.5,2.5 0 0,0 19,15.5A2.5,2.5 0 0,0 16.5,13Z" />
       </svg>
     </button>
 
@@ -135,15 +119,11 @@
 
       <!-- 聊天内容区域 -->
       <div class="ai-chat-body" ref="chatBodyRef">
-        <div 
-          v-for="(msg, index) in messages" 
-          :key="index" 
-          :class="['message', msg.role]"
-        >
+        <div v-for="(msg, index) in messages" :key="index" :class="['message', msg.role]">
           <!-- 使用 v-html 可以支持简单的格式，或者只用 {{ }} 纯文本 -->
           <span v-html="msg.content"></span>
         </div>
-        
+
         <!-- Loading 动画占位 -->
         <div v-if="isThinking" class="message ai thinking">
           <span>●</span><span>●</span><span>●</span>
@@ -153,14 +133,8 @@
       <!-- 底部输入框 -->
       <div class="ai-input-wrapper">
         <div class="input-container">
-          <input 
-            ref="inputRef"
-            v-model="inputText" 
-            type="text" 
-            class="chat-input" 
-            placeholder="输入您的问题..." 
-            @keydown.enter="sendAIMessage"
-          />
+          <input ref="inputRef" v-model="inputText" type="text" class="chat-input" placeholder="输入您的问题..."
+            @keydown.enter="sendAIMessage" />
           <button class="send-btn" @click="sendAIMessage">
             <svg style="width:16px;height:16px;fill:white;transform:translateX(2px)" viewBox="0 0 24 24">
               <path d="M2,21L23,12L2,3V10L17,12L2,14V21Z" />
@@ -175,6 +149,8 @@
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 
+// import { CozeAPI } from '@coze/api';
+
 // 侧边栏状态
 const isSidebarOpen = ref(true);
 const toggleSidebar = () => {
@@ -182,7 +158,7 @@ const toggleSidebar = () => {
 };
 
 // ... (保留原本的其他所有 script 逻辑，无需改动) ...
-const selectedScene = ref('haru');
+const selectedScene = ref('nova');
 const eyeTracking = ref('follow');
 const modelSize = ref(2.0);
 const chatInput = ref('你能做什么');
@@ -224,9 +200,103 @@ const stopDrag = () => {
 };
 const sendMessage = () => console.log('发送消息:', chatInput.value);
 
-onMounted(() => {
+
+//---------- 数字人 ---------------
+// 引用canvas元素
+const canvas = ref(null);
+const live2dContainer = ref(null);
+// 保存model引用以便在组件中使用
+let model = null;
+// let motionSync = null;
+let app1 = null;
+
+// 定义测试音频的函数
+const handlePlayTestAudio = () => {
+  console.log('开始播放测试音频...');
+  let spk = "./Keira.wav";
+  playTestAudio(spk);
+};
+
+// 播放测试音频
+const playTestAudio = (spk) => {
+  console.log("播放测试音频");
+  console.log(model);
+  console.log(model.speak);
+  if (model) {
+    // 使用模型说话功能播放音频
+    model.speak(spk, {
+      volume: 1,
+      expression: 8,
+      resetExpression: true,
+      crossOrigin: "anonymous",
+    });
+  } else {
+    console.warn("模型未加载，无法播放音频");
+  }
+};
+
+onMounted(async () => {
   window.addEventListener('mousemove', onDrag);
   window.addEventListener('mouseup', stopDrag);
+
+  // 实际项目中可以计算图片宽度居中，这里暂时写死
+  // 确保所需的库已经在全局可用
+  const PIXI = window.PIXI;
+  const live2d = PIXI.live2d;
+
+  if (!PIXI || !live2d) {
+    console.error("PIXI或live2d库未加载");
+    return;
+  }
+  console.log("Resize", live2dContainer.value);
+  try {
+    // 创建第一个应用和渲染上下文
+    app1 = new PIXI.Application({
+      view: canvas.value,
+      autoStart: true,
+      resizeTo: live2dContainer.value,
+      autoResize: true,
+      transparent: true,
+      backgroundAlpha: 0,
+      antialias: true,
+    });
+
+  } catch (error) {
+    console.error(error);
+  }
+
+  setTimeout(async () => {
+    try {
+      // const modelPath = "./models/${selectedScene.value}/${selectedScene.value}.model3.json";
+      const modelPath = "./models/pachan/pachan.model3.json";
+      console.log("Model", selectedScene.value);
+      const loadedModel2 = await live2d.Live2DModel.from(modelPath, { autoInteract: true });
+      loadedModel2.position.x = 0
+      loadedModel2.position.y = 0
+
+      // 设置模型大小和位置...
+      const containerWidth = live2dContainer.value.clientWidth;
+      const containerHeight = live2dContainer.value.clientHeight;
+      const scale = Math.min(
+        containerWidth / loadedModel2.width,
+        containerHeight / loadedModel2.height
+      );
+      loadedModel2.scale.set(scale);
+      model = loadedModel2;
+      // 设置点击事件
+      loadedModel2.on("hit", (hitAreas) => {
+        if (hitAreas.includes("Body")) {
+          loadedModel2.motion("Tap");
+        }
+        if (hitAreas.includes("Head")) {
+          loadedModel2.expression();
+        }
+      });
+      app1.stage.addChild(loadedModel2);
+    } catch (error) {
+      console.error(error);
+    }
+  }, 3000); // 500毫秒延迟
 });
 onUnmounted(() => {
   window.removeEventListener('mousemove', onDrag);
@@ -243,9 +313,9 @@ const inputRef = ref(null);
 
 // 初始消息数据
 const messages = ref([
-  { 
-    role: 'ai', 
-    content: '您好！我是您的智能助手。<br>有什么我可以帮您的吗？' 
+  {
+    role: 'ai',
+    content: '您好！我是您的智能助手。<br>有什么我可以帮您的吗？'
   }
 ]);
 
@@ -263,6 +333,11 @@ const toggleAISidebar = () => {
   }
 };
 
+// 配置您的凭证（注意：在生产环境中，这些敏感信息不应硬编码在前端代码中）
+const botId = '7581057336081989658';
+const accessToken = 'pat_w1UVPk6EFIsDBokCWBRvbWpn8lSoSXUBM09fhRpCWuFtvtHQkeqrFGvfc8D0Hehe';
+const userId = '123456789'; // 例如 '123456789'
+
 // 2. 发送消息
 const sendAIMessage = async () => {
   const text = inputText.value.trim();
@@ -277,20 +352,91 @@ const sendAIMessage = async () => {
   isThinking.value = true;
   await scrollToBottom();
 
-  // 模拟 API 请求延迟
-  setTimeout(() => {
-    isThinking.value = false;
-    // 添加 AI 回复
-    const responses = [
-      "这是一个基于 Vue 3 的组件化实现。",
-      "样式已适配白色明亮主题，使用了 Glassmorphism 效果。",
-      "收到您的指令，正在处理数据..."
-    ];
-    const randomRes = responses[Math.floor(Math.random() * responses.length)];
-    
-    messages.value.push({ role: 'ai', content: randomRes });
-    scrollToBottom();
-  }, 800);
+  // 1. 构建请求体
+  const requestBody = {
+    bot_id: botId,
+    user_id: userId,
+    stream: true, // 启用流式传输
+    additional_messages: [
+      {
+        role: 'user',
+        content: text,
+        content_type: 'text',
+        type: 'question'
+      }
+    ]
+  };
+
+  try {
+    // 2. 发起Fetch请求
+    const response = await fetch('https://api.coze.cn/v3/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    // 3. 检查响应是否正常
+    if (!response.ok) {
+      throw new Error(`网络响应异常: ${response.status}`);
+    }
+
+    // 4. 获取可读流
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    var accumulatedMessage = ''; // 用于累积AI返回的消息
+
+    messages.value.push({ role: 'ai', content: "" });
+    const lastMsgIndex = messages.value.length - 1;
+    // 5. 循环读取流数据
+    for (; ;) {
+      const { done, value } = await reader.read();
+      if (done) break; // 流读取结束
+
+      // 解码数据块
+      const chunk = decoder.decode(value, { stream: true });
+      // 按换行符分割，因为SSE数据是以"data: "开头的多行文本 [1](@ref)
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        // console.log(line);
+        const trimmedLine = line.trim();
+        if (!trimmedLine || trimmedLine === 'data:[DONE]') continue; // 忽略空行和结束信号
+
+        if (trimmedLine.startsWith('data:')) {
+          const jsonData = trimmedLine.substring(5); // 去掉"data: "前缀
+          try {
+            const parsedData = JSON.parse(jsonData);
+            // 6. 提取AI回复内容。关键：根据Coze的响应结构找到答案 [3](@ref)
+            if (parsedData.role === 'assistant' && parsedData.type === 'answer' && parsedData.content) {
+              console.log(parsedData.content);
+              accumulatedMessage += parsedData.content;
+              messages.value[lastMsgIndex].content += parsedData.content;
+              // ！重要：在这里实时更新UI，将accumulatedMessage显示给用户
+              // console.log(accumulatedMessage); // 例如：更新网页上的聊天对话框
+              // updateChatUI(accumulatedMessage); // 您需要实现这个函数
+            }
+          } catch (e) {
+            console.error('解析JSON数据失败:', e);
+          }
+        }
+      }
+    }
+    // 对话完成，可以将完整的accumulatedMessage存入历史记录
+    //数字人朗读，后续来做精细处理，先实现
+    console.log("Answer", accumulatedMessage);
+  } catch (error) {
+    console.error('调用Coze API时发生错误:', error);
+    // ！重要：在界面上向用户显示错误信息
+  }
+
+  isThinking.value = false;
+  scrollToBottom();
+  
+  
+
 };
 
 // 3. 滚动到底部工具函数
@@ -311,10 +457,11 @@ const scrollToBottom = async () => {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   color: #333;
   background-color: #f5f7fa;
-  overflow: hidden; 
-  position: relative; /* 为绝对定位的按钮提供参考 */
+  overflow: hidden;
+  position: relative;
+  /* 为绝对定位的按钮提供参考 */
 
-    --primary-gradient: linear-gradient(135deg, #4f46e5 0%, #8b5cf6 100%);
+  --primary-gradient: linear-gradient(135deg, #4f46e5 0%, #8b5cf6 100%);
   --glass-bg: rgba(255, 255, 255, 0.75);
   --text-main: #1e293b;
   --text-secondary: #64748b;
@@ -331,9 +478,9 @@ const scrollToBottom = async () => {
   background: #fff;
   border-right: 1px solid #e4e7ed;
   /* 关键：必须设置为 hidden，否则宽度变0时内容依然可见 */
-  overflow: hidden; 
+  overflow: hidden;
   /* 关键：防止 flex 布局自动压缩侧边栏，确保宽度完全由 width 控制 */
-  flex-shrink: 0; 
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   transition: width 0.3s ease;
@@ -343,18 +490,22 @@ const scrollToBottom = async () => {
 /* 折叠状态 */
 .sidebar.collapsed {
   width: 0;
-  border-right: none; /* 折叠时隐藏边框 */
+  border-right: none;
+  /* 折叠时隐藏边框 */
 }
 
 /* 内部内容容器：固定宽度 */
 .sidebar-inner {
-  width: 360px; /* 固定宽度，防止内容被挤压 */
-  min-width: 360px; /* 强制最小宽度 */
+  width: 360px;
+  /* 固定宽度，防止内容被挤压 */
+  min-width: 360px;
+  /* 强制最小宽度 */
   padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 15px;
-  overflow-y: auto; /* 滚动条加在这里 */
+  overflow-y: auto;
+  /* 滚动条加在这里 */
   height: 100%;
   box-sizing: border-box;
 }
@@ -364,13 +515,14 @@ const scrollToBottom = async () => {
   position: absolute;
   top: 50%;
   /* 默认位置：侧边栏宽度(360px)处 */
-  left: 360px; 
+  left: 360px;
   transform: translateY(-50%);
   width: 16px;
   height: 60px;
   background: #fff;
   border: 1px solid #e4e7ed;
-  border-left: none; /* 看起来像是粘在侧边栏上 */
+  border-left: none;
+  /* 看起来像是粘在侧边栏上 */
   border-radius: 0 8px 8px 0;
   display: flex;
   align-items: center;
@@ -380,8 +532,9 @@ const scrollToBottom = async () => {
   font-size: 12px;
   user-select: none;
   z-index: 20;
-  transition: left 0.3s ease; /* 关键：跟随侧边栏移动 */
-  box-shadow: 2px 0 4px rgba(0,0,0,0.05);
+  transition: left 0.3s ease;
+  /* 关键：跟随侧边栏移动 */
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
 }
 
 .toggle-btn:hover {
@@ -391,28 +544,128 @@ const scrollToBottom = async () => {
 
 /* 按钮折叠状态的位置 */
 .toggle-btn.collapsed {
-  left: 0; /* 折叠时回到最左侧 */
-  border-left: 1px solid #e4e7ed; /* 补上左边框 */
+  left: 0;
+  /* 折叠时回到最左侧 */
+  border-left: 1px solid #e4e7ed;
+  /* 补上左边框 */
 }
 
 /* --- 原有样式保留 --- */
-.row { margin-bottom: 5px; }
-.control-group label { font-size: 14px; color: #606266; margin-bottom: 8px; display: block; }
-.btn { padding: 6px 12px; font-size: 12px; border-radius: 4px; cursor: pointer; border: 1px solid #dcdfe6; background: #fff; color: #606266; transition: all 0.2s; white-space: nowrap; }
-.btn:hover { color: #409eff; border-color: #c6e2ff; background-color: #ecf5ff; }
-.form-select, .form-input { width: 100%; padding: 6px; border: 1px solid #dcdfe6; border-radius: 4px; font-size: 12px; outline: none; box-sizing: border-box; }
-.form-select:focus, .form-input:focus, .form-textarea:focus { border-color: #409eff; }
-.flex-row { display: flex; gap: 8px; align-items: center; }
-.mb-2 { margin-bottom: 8px; }
-.radio-group { display: flex; gap: 15px; }
-.radio-label { display: flex; align-items: center; cursor: pointer; font-size: 13px; }
-.radio-label input { margin-right: 4px; accent-color: #409eff; }
-.card { border: 1px solid #e4e7ed; border-radius: 4px; background: #fff; overflow: hidden; flex-shrink: 0; }
-.card-header { padding: 10px 15px; color: #409eff; font-weight: 600; font-size: 14px; border-bottom: 1px solid #ebeef5; }
-.card-body { padding: 15px; }
-.form-textarea { width: 100%; height: 100px; padding: 8px; border: 1px solid #dcdfe6; border-radius: 4px; resize: none; font-size: 12px; line-height: 1.5; color: #606266; box-sizing: border-box; }
-.form-textarea.readonly { background-color: #f5f7fa; color: #909399; }
-.button-group { display: flex; justify-content: space-between; }
+.row {
+  margin-bottom: 5px;
+}
+
+.control-group label {
+  font-size: 14px;
+  color: #606266;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid #dcdfe6;
+  background: #fff;
+  color: #606266;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  color: #409eff;
+  border-color: #c6e2ff;
+  background-color: #ecf5ff;
+}
+
+.form-select,
+.form-input {
+  width: 100%;
+  padding: 6px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  font-size: 12px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.form-select:focus,
+.form-input:focus,
+.form-textarea:focus {
+  border-color: #409eff;
+}
+
+.flex-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.mb-2 {
+  margin-bottom: 8px;
+}
+
+.radio-group {
+  display: flex;
+  gap: 15px;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.radio-label input {
+  margin-right: 4px;
+  accent-color: #409eff;
+}
+
+.card {
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  background: #fff;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.card-header {
+  padding: 10px 15px;
+  color: #409eff;
+  font-weight: 600;
+  font-size: 14px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.card-body {
+  padding: 15px;
+}
+
+.form-textarea {
+  width: 100%;
+  height: 100px;
+  padding: 8px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  resize: none;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #606266;
+  box-sizing: border-box;
+}
+
+.form-textarea.readonly {
+  background-color: #f5f7fa;
+  color: #909399;
+}
+
+.button-group {
+  display: flex;
+  justify-content: space-between;
+}
 
 /* 右侧主内容样式 */
 .main-content {
@@ -420,17 +673,88 @@ const scrollToBottom = async () => {
   display: flex;
   flex-direction: column;
   background: #fff;
-  overflow: hidden; 
-  transition: all 0.3s ease; /* 确保右侧内容在左侧折叠时平滑扩展 */
+  overflow: hidden;
+  transition: all 0.3s ease;
+  /* 确保右侧内容在左侧折叠时平滑扩展 */
 }
 
-.top-bar { height: 50px; border-bottom: 1px solid #e4e7ed; display: flex; align-items: center; padding: 0 20px; gap: 20px; background: #fdfdfd; }
-.slider-container { width: 200px; }
-.slider { width: 100%; accent-color: #409eff; }
-.model-viewport { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; background: #fff; overflow: hidden; }
-.character-wrapper { transition: transform 0.1s; cursor: grab; user-select: none; -webkit-user-select: none; }
-.character-img { height: 400px; width: auto; }
-.subtitle { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: bold; color: #000; text-shadow: 0 0 5px rgba(255,255,255,0.8); font-family: sans-serif; max-width: 80%; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+.top-bar {
+  height: 50px;
+  border-bottom: 1px solid #e4e7ed;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 20px;
+  background: #fdfdfd;
+}
+
+.slider-container {
+  width: 200px;
+}
+
+.slider {
+  width: 100%;
+  accent-color: #409eff;
+}
+
+.model-viewport {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;     /* 水平居中 */
+  justify-content: center; /* 垂直居中 */
+  position: relative;
+  background: radial-gradient(circle at center, #ffffff 0%, #f0f2f5 100%);
+  overflow: hidden;
+  padding: 20px; /* 防止正方形贴边 */
+}
+
+.character-wrapper {
+  transition: transform 0.1s;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.live2d-container {
+  /* 核心：强制宽高比为 1:1 */
+  aspect-ratio: 1 / 1;
+  
+  /* 响应式大小控制：
+     让它尽可能大，但不要超过父容器宽度的 90%，
+     也不要超过父容器高度的 80% (留出底部字幕空间) 
+  */
+  width: min(90%, 80vh); 
+  
+  /* 只是为了调试看清楚区域，可以加个临时背景色，正式版删掉 */
+  /* background: rgba(0,0,0,0.05); */
+  /* border: 1px dashed #ccc; */
+  
+  position: relative;
+}
+
+.character-img {
+  height: 400px;
+  width: auto;
+}
+
+.subtitle {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 24px;
+  font-weight: bold;
+  color: #000;
+  text-shadow: 0 0 5px rgba(255, 255, 255, 0.8);
+  font-family: sans-serif;
+  max-width: 80%;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
 
 /* ================= 悬浮按钮 ================= */
 .ai-float-btn {
@@ -456,7 +780,11 @@ const scrollToBottom = async () => {
   box-shadow: 0 15px 30px rgba(79, 70, 229, 0.5);
 }
 
-.ai-icon { width: 28px; height: 28px; fill: white; }
+.ai-icon {
+  width: 28px;
+  height: 28px;
+  fill: white;
+}
 
 /* ================= 侧边栏 ================= */
 .ai-sidebar {
@@ -471,7 +799,8 @@ const scrollToBottom = async () => {
   border: 1px solid rgba(255, 255, 255, 0.8);
   border-radius: 20px;
   box-shadow: var(--shadow-float);
-  z-index: 10000; /* 确保在最上层 */
+  z-index: 10000;
+  /* 确保在最上层 */
   transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   flex-direction: column;
@@ -484,11 +813,11 @@ const scrollToBottom = async () => {
 /* ================= 头部 ================= */
 .ai-header {
   padding: 18px 24px;
-  border-bottom: 1px solid rgba(0,0,0,0.05);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(255,255,255,0.4);
+  background: rgba(255, 255, 255, 0.4);
   border-radius: 20px 20px 0 0;
 }
 
@@ -512,8 +841,10 @@ const scrollToBottom = async () => {
 .status-dot::after {
   content: '';
   position: absolute;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
   background: #10b981;
   opacity: 0.5;
@@ -521,8 +852,15 @@ const scrollToBottom = async () => {
 }
 
 @keyframes ripple {
-  0% { transform: scale(1); opacity: 0.5; }
-  100% { transform: scale(2.5); opacity: 0; }
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
 }
 
 .close-btn {
@@ -530,13 +868,20 @@ const scrollToBottom = async () => {
   border: none;
   color: var(--text-secondary);
   cursor: pointer;
-  width: 32px; height: 32px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 1.2rem;
   transition: all 0.2s;
 }
-.close-btn:hover { background: #e2e8f0; color: var(--text-main); }
+
+.close-btn:hover {
+  background: #e2e8f0;
+  color: var(--text-main);
+}
 
 /* ================= 聊天区 ================= */
 .ai-chat-body {
@@ -546,11 +891,17 @@ const scrollToBottom = async () => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  background: rgba(255,255,255,0.2);
+  background: rgba(255, 255, 255, 0.2);
 }
 
-.ai-chat-body::-webkit-scrollbar { width: 5px; }
-.ai-chat-body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+.ai-chat-body::-webkit-scrollbar {
+  width: 5px;
+}
+
+.ai-chat-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
 
 .message {
   max-width: 85%;
@@ -559,7 +910,8 @@ const scrollToBottom = async () => {
   font-size: 0.95rem;
   line-height: 1.6;
   position: relative;
-  word-wrap: break-word; /* 防止长单词撑开 */
+  word-wrap: break-word;
+  /* 防止长单词撑开 */
   animation: slideUp 0.3s ease;
 }
 
@@ -585,30 +937,53 @@ const scrollToBottom = async () => {
   gap: 4px;
   padding: 16px 20px;
 }
+
 .message.thinking span {
-  width: 4px; height: 4px;
+  width: 4px;
+  height: 4px;
   background-color: #94a3b8;
   border-radius: 50%;
   animation: bounce 1.4s infinite ease-in-out both;
 }
-.message.thinking span:nth-child(1) { animation-delay: -0.32s; }
-.message.thinking span:nth-child(2) { animation-delay: -0.16s; }
+
+.message.thinking span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.message.thinking span:nth-child(2) {
+  animation-delay: -0.16s;
+}
 
 @keyframes bounce {
-  0%, 80%, 100% { transform: scale(0); }
-  40% { transform: scale(1); }
+
+  0%,
+  80%,
+  100% {
+    transform: scale(0);
+  }
+
+  40% {
+    transform: scale(1);
+  }
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ================= 输入区 ================= */
 .ai-input-wrapper {
   padding: 20px;
-  border-top: 1px solid rgba(0,0,0,0.05);
-  background: rgba(255,255,255,0.6);
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  background: rgba(255, 255, 255, 0.6);
   border-radius: 0 0 20px 20px;
 }
 
@@ -634,30 +1009,49 @@ const scrollToBottom = async () => {
   font-size: 0.95rem;
   color: var(--text-main);
 }
-.chat-input::placeholder { color: #94a3b8; }
+
+.chat-input::placeholder {
+  color: #94a3b8;
+}
 
 .send-btn {
-  width: 36px; height: 36px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: none;
   background: var(--primary-gradient);
   cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin-left: 8px;
   transition: transform 0.2s;
 }
-.send-btn:hover { transform: scale(1.05); }
+
+.send-btn:hover {
+  transform: scale(1.05);
+}
 
 /* ================= 移动端适配 ================= */
 @media (max-width: 480px) {
   .ai-sidebar {
     --panel-width: 100%;
-    top: 0; bottom: 0; right: -100%;
+    top: 0;
+    bottom: 0;
+    right: -100%;
     border-radius: 0;
   }
-  .ai-sidebar.active { right: 0; }
-  .ai-header { border-radius: 0; }
-  .ai-input-wrapper { border-radius: 0; }
-}
 
+  .ai-sidebar.active {
+    right: 0;
+  }
+
+  .ai-header {
+    border-radius: 0;
+  }
+
+  .ai-input-wrapper {
+    border-radius: 0;
+  }
+}
 </style>
