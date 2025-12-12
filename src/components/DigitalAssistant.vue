@@ -91,7 +91,7 @@
           cursor: isDragging ? 'grabbing' : 'grab'
         }" @mousedown="startDrag">
           <div class="live2d-container" ref="live2dContainer">
-            <canvas ref="canvas" id="live2d-canvas"></canvas>  
+            <canvas ref="canvas" id="live2d-canvas"></canvas>
           </div>
         </div>
         <div class="subtitle">怎么去发布和上架</div>
@@ -386,7 +386,8 @@ const sendAIMessage = async () => {
     // 4. 获取可读流
     const reader = response.body.getReader();
     const decoder = new TextDecoder('utf-8');
-    var accumulatedMessage = ''; // 用于累积AI返回的消息
+    let currentEventType = "";   // 记录当前行的事件类型
+    var accumulatedContent = ''; // 用于累积AI返回的消息
 
     messages.value.push({ role: 'ai', content: "" });
     const lastMsgIndex = messages.value.length - 1;
@@ -401,32 +402,71 @@ const sendAIMessage = async () => {
       const lines = chunk.split('\n');
 
       for (const line of lines) {
-        // console.log(line);
+        console.log(line);
         const trimmedLine = line.trim();
-        if (!trimmedLine || trimmedLine === 'data:[DONE]') continue; // 忽略空行和结束信号
+        if (!trimmedLine) continue; // 忽略空行和结束信号
 
-        if (trimmedLine.startsWith('data:')) {
-          const jsonData = trimmedLine.substring(5); // 去掉"data: "前缀
+        // 1. 识别事件类型行
+        if (trimmedLine.startsWith('event:')) {
+          currentEventType = trimmedLine.replace('event:', '').trim();
+        }
+        // 2. 识别数据行
+        else if (trimmedLine.startsWith('data:') && currentEventType) {
+          const jsonDataStr = trimmedLine.replace('data:', '').trim();
+
+          // 检查流式传输结束标志[3](@ref)
+          if (jsonDataStr === '[DONE]') {
+            console.log('Stream finished.');
+            break;
+          }
+
           try {
-            const parsedData = JSON.parse(jsonData);
-            // 6. 提取AI回复内容。关键：根据Coze的响应结构找到答案 [3](@ref)
-            if (parsedData.role === 'assistant' && parsedData.type === 'answer' && parsedData.content) {
-              console.log(parsedData.content);
-              accumulatedMessage += parsedData.content;
-              messages.value[lastMsgIndex].content += parsedData.content;
-              // ！重要：在这里实时更新UI，将accumulatedMessage显示给用户
-              // console.log(accumulatedMessage); // 例如：更新网页上的聊天对话框
-              // updateChatUI(accumulatedMessage); // 您需要实现这个函数
+            const data = JSON.parse(jsonDataStr);
+
+            // 3. 核心逻辑：根据事件类型进行分支处理
+            if (currentEventType === 'conversation.message.delta') {
+              // 处理增量内容
+              if (data.type === 'answer' && data.content) {
+                accumulatedContent += data.content; // 累积内容
+                messages.value[lastMsgIndex].content += data.content;
+                // 实时更新UI，实现打字机效果[3](@ref)
+                // updateUI(accumulatedContent);
+              }
+            } else if (currentEventType === 'conversation.message.completed') {
+              // 处理完成事件
+              if (data.type === 'verbose') {
+                const contentObj = JSON.parse(data.content);
+                if (contentObj.msg_type === 'generate_answer_finish') {
+                  // 确认对话完成，进行收尾工作[1](@ref)
+                  // handleConversationComplete(accumulatedContent);
+                  console.log("Result", accumulatedContent);
+                }
+              }
             }
           } catch (e) {
-            console.error('解析JSON数据失败:', e);
+            console.error('Parsing error:', e, 'Raw data:', jsonDataStr);
           }
+          // 重置当前事件类型，等待下一组事件/数据
+          currentEventType = "";
         }
       }
     }
     // 对话完成，可以将完整的accumulatedMessage存入历史记录
     //数字人朗读，后续来做精细处理，先实现
-    console.log("Answer", accumulatedMessage);
+    // console.log("Answer", accumulatedContent);
+    const resp = await fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: accumulatedContent,
+        text_lang: 'zh',
+        ref_audio_path: 'examples/Keira.wav',
+        prompt_lang: 'zh',
+      }),
+    });
+    const audioBlob = await resp.blob();
+    const url = URL.createObjectURL(audioBlob);
+    model.speak(url, { volume: 1, expression: 8, resetExpression: true, crossOrigin: 'anonymous' });
   } catch (error) {
     console.error('调用Coze API时发生错误:', error);
     // ！重要：在界面上向用户显示错误信息
@@ -434,9 +474,6 @@ const sendAIMessage = async () => {
 
   isThinking.value = false;
   scrollToBottom();
-  
-  
-
 };
 
 // 3. 滚动到底部工具函数
@@ -701,12 +738,15 @@ const scrollToBottom = async () => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;     /* 水平居中 */
-  justify-content: center; /* 垂直居中 */
+  align-items: center;
+  /* 水平居中 */
+  justify-content: center;
+  /* 垂直居中 */
   position: relative;
   background: radial-gradient(circle at center, #ffffff 0%, #f0f2f5 100%);
   overflow: hidden;
-  padding: 20px; /* 防止正方形贴边 */
+  padding: 20px;
+  /* 防止正方形贴边 */
 }
 
 .character-wrapper {
@@ -719,17 +759,17 @@ const scrollToBottom = async () => {
 .live2d-container {
   /* 核心：强制宽高比为 1:1 */
   aspect-ratio: 1 / 1;
-  
+
   /* 响应式大小控制：
      让它尽可能大，但不要超过父容器宽度的 90%，
      也不要超过父容器高度的 80% (留出底部字幕空间) 
   */
-  width: min(90%, 80vh); 
-  
+  width: min(90%, 80vh);
+
   /* 只是为了调试看清楚区域，可以加个临时背景色，正式版删掉 */
   /* background: rgba(0,0,0,0.05); */
   /* border: 1px dashed #ccc; */
-  
+
   position: relative;
 }
 
