@@ -162,15 +162,18 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick } from 'vue';
-
+// 【新增】引入录音库核心和wav编码器
+import Recorder from 'recorder-core';
+import 'recorder-core/src/engine/wav';
 // --- 新增：语音输入逻辑 ---
 // --- 语音识别核心逻辑 ---
 const isRecording = ref(false); // 是否正在录音
 const isRecognizing = ref(false); // 是否正在请求API识别
-const asrApiUrl = 'http://localhost:9999/api/v1/asr'; // SenseVoice API 地址
+const asrApiUrl = 'http://192.168.3.34:9999/api/v1/asr'; // SenseVoice API 地址
 
-let mediaRecorder = null;
-let audioChunks = [];
+// 【修改】不再使用 mediaRecorder，改用 recorder-core 实例
+let rec = null; 
+// let audioChunks = [];
 
 // 1. 切换录音状态（绑定到按钮点击）
 const toggleVoiceRecording = async () => {
@@ -189,44 +192,28 @@ const toggleVoiceRecording = async () => {
 // 2. 开始捕获音频
 const startCapture = async () => {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        sampleRate: 16000, // SenseVoice 推荐 16k
-        channelCount: 1,   // 单声道
-        echoCancellation: true,
-        noiseSuppression: true
+    // 初始化录音实例
+    rec = Recorder({
+      type: "wav",       // 【关键】强制输出 wav 格式
+      sampleRate: 16000, // 【关键】强制采样率 16k (SenseVoice 最佳)
+      bitRate: 16,       // 16位
+      onProcess: (buffers, powerLevel, bufferDuration, bufferSampleRate) => {
+        // 如果需要做可视化波形图，可以在这里获取 powerLevel
+        console.log(buffers, powerLevel, bufferDuration, bufferSampleRate);
       }
     });
 
-    mediaRecorder = new MediaRecorder(stream, {
-      mimeType: 'audio/webm;codecs=opus'
+    // 打开麦克风
+    rec.open(() => {
+      // 打开成功，开始录音
+      rec.start();
+      isRecording.value = true;
+      console.log('[Audio] 开始录音 (WAV 16k)...');
+    }, (msg, isUserNotAllow) => {
+      // 打开失败
+      console.error('无法启动麦克风:', msg);
+      alert((isUserNotAllow ? "用户拒绝了权限" : "无法打开麦克风") + ": " + msg);
     });
-
-    audioChunks = [];
-
-    // 收集音频数据
-    mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        audioChunks.push(event.data);
-      }
-    };
-
-    // 录音停止后的处理
-    mediaRecorder.onstop = async () => {
-      // 生成音频 Blob
-      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-
-      // 停止所有轨道，释放麦克风
-      stream.getTracks().forEach(track => track.stop());
-
-      // ★ 核心整合：立即触发识别
-      await processRecognition(audioBlob);
-    };
-
-    mediaRecorder.start(100); // 每100ms切片
-    isRecording.value = true;
-    console.log('[Audio] 开始录音...');
-
   } catch (error) {
     console.error('无法启动麦克风:', error);
     alert('无法启动麦克风，请检查权限。');
@@ -235,10 +222,26 @@ const startCapture = async () => {
 
 // 3. 停止捕获
 const stopCapture = () => {
-  if (mediaRecorder && isRecording.value) {
-    mediaRecorder.stop();
-    isRecording.value = false;
-    console.log('[Audio] 停止录音，准备识别...');
+  if (rec && isRecording.value) {
+    console.log('[Audio] 停止录音，处理中...');
+    
+    // 停止录音，获取 Blob
+    rec.stop((blob, duration) => {
+      console.log(duration);
+      isRecording.value = false;
+      
+      // 关闭麦克风，释放资源
+      rec.close(); 
+      rec = null;
+
+      // ★ 核心整合：立即触发识别
+      // blob 已经是标准的 wav 文件流了
+      processRecognition(blob);
+      
+    }, (msg) => {
+      console.error("录音失败:", msg);
+      isRecording.value = false;
+    });
   }
 };
 
@@ -284,8 +287,7 @@ const processRecognition = async (blob) => {
 
       // 3. 稍作延迟后自动发送 (可选，为了让用户看到识别出的字)
       setTimeout(() => {
-
-        // sendAIMessage();
+        sendAIMessage();
       }, 500);
     }
 
@@ -484,9 +486,72 @@ const botId = '7581057336081989658';
 const accessToken = 'pat_w1UVPk6EFIsDBokCWBRvbWpn8lSoSXUBM09fhRpCWuFtvtHQkeqrFGvfc8D0Hehe';
 const userId = '123456789'; // 例如 '123456789'
 
+// 定义全局变量用于管理队列
+var audioQueue = [];
+var isPlaying = false;
+
+// 队列处理函数
+const processAudioQueue = async (model) => {
+  if (isPlaying || audioQueue.length === 0) return;
+
+  isPlaying = true;
+  const audioUrl = audioQueue.shift();
+
+  try {
+    console.log("开始播放片段...");
+
+    // await 会一直暂停在这里，直到 talk 里的 onFinish 被触发
+    await talk(model, audioUrl);
+
+    // (可选) 极短的缓冲，让连续发音之间的衔接更自然（比如 50ms）
+    // 如果想要机关枪语速，可以去掉这行
+    await new Promise(r => setTimeout(r, 50));
+
+  } catch (err) {
+    console.error("队列错误:", err);
+  } finally {
+    // 释放内存
+    URL.revokeObjectURL(audioUrl);
+    isPlaying = false;
+    // 递归处理下一段
+    processAudioQueue(model);
+  }
+}
+
+const talk = (model, audio_link) => {
+  return new Promise((resolve) => {
+
+    model.speak(audio_link, {
+      volume: 1,
+      expression: 8,
+      resetExpression: true,
+      crossOrigin: "anonymous",
+
+      // 【核心逻辑】
+      // 当音频自然播放结束时，库会调用这个函数
+      onFinish: () => {
+        console.log("当前片段播放完毕");
+        resolve(); // 解除 await 阻塞，允许队列播放下一段
+      },
+
+      // 如果加载出错，也要 resolve，防止队列卡死
+      onError: (err) => {
+        console.error("播放出错:", err);
+        resolve();
+      }
+    }).catch(e => {
+      // 捕获 speak 方法本身的同步错误
+      console.error("调用 speak 失败:", e);
+      resolve();
+    });
+
+  });
+}
+
 // 2. 发送消息
 const sendAIMessage = async () => {
   const text = inputText.value.trim();
+  console.log("[COZE] text", text);
   if (!text) return;
 
   // 添加用户消息
@@ -606,21 +671,59 @@ const sendAIMessage = async () => {
       body: JSON.stringify({
         text: accumulatedContent,
         text_lang: 'zh',
-        ref_audio_path: 'examples/Keira.wav',
+        ref_audio_path: 'examples/teacher.wav',
         prompt_lang: 'zh',
+        prompt_text: '同学们，我们一起来学习人工智能，探索AI科技的奇幻世界吧',
+        text_split_method: 'cut5',
+        batch_size: 1,
+        media_type: 'ogg',
+        speed_factor: 1.0,
+        streaming_mode: "true"
       }),
     });
-    const audioBlob = await resp.blob();
-    const url = URL.createObjectURL(audioBlob);
-    model.speak(url, { volume: 1, expression: 8, resetExpression: true, crossOrigin: 'anonymous' });
+
+    const ttsReader = resp.body.getReader();
+    let count = 0;
+    while (count === 0) {
+      const { done, value } = await ttsReader.read();
+      if (done) {
+        console.log("Stream done");
+        //用户界面元素激活
+        // $("#start_stream").prop("disabled", false);
+        break;
+      }
+
+      // 【关键修改】过滤掉过小的数据包（例如小于 100 字节的可能是头部信息或静音帧）
+      // 避免无效的 speak 调用导致播放队列混乱
+      if (!value || value.byteLength < 100) {
+        console.log("Skipping small/empty chunk:", value ? value.byteLength : 0);
+        continue;
+      }
+
+      console.log("--------------------value");
+      console.log(value);
+      // 1. 创建 Blob
+      const audioBlob = new Blob([value.buffer], { type: 'audio/ogg' });
+      // 2. 创建 URL
+      const audioUrl = URL.createObjectURL(audioBlob);
+      console.log("processAudioQueue - push", audioUrl);
+      // 3. 推入队列
+      audioQueue.push(audioUrl);
+      // 4. 尝试触发播放（如果当前没在播，就会立即开始；如果正在播，这行代码无副作用）
+      processAudioQueue(model);
+    }
+    // const audioBlob = await resp.blob();
+    // const url = URL.createObjectURL(audioBlob);
+    // model.speak(url, { volume: 1, expression: 8, resetExpression: true, crossOrigin: 'anonymous' });
   } catch (error) {
     console.error('调用Coze API时发生错误:', error);
     // ！重要：在界面上向用户显示错误信息
   }
-
   isThinking.value = false;
   scrollToBottom();
 };
+
+
 
 // 3. 滚动到底部工具函数
 const scrollToBottom = async () => {
@@ -1397,7 +1500,8 @@ const scrollToBottom = async () => {
 
 /* === 新增：处理中状态 (API请求时) === */
 .voice-btn.processing {
-  background: #cbd5e1; /* 灰色背景表示等待 */
+  background: #cbd5e1;
+  /* 灰色背景表示等待 */
   cursor: wait;
   transform: scale(0.95);
   box-shadow: none;
@@ -1417,8 +1521,13 @@ const scrollToBottom = async () => {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* 优化之前的 mic-icon 样式，确保它在 v-else 切换时平滑 */

@@ -14,6 +14,7 @@
     "element-plus": "^2.12.0",
     "live2d-motionsync": "^0.0.4",
     "pixi.js": "^8.14.3",
+    "recorder-core": "^1.3.25011100",
     "vue": "^3.2.13",
     "vue-element-plus-x": "^1.3.7"
   },
