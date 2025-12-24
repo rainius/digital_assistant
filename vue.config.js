@@ -12,6 +12,13 @@ module.exports = defineConfig({
         // 可选：方便你在控制台看到代理日志
         logLevel: "debug",
       },
+      // 新增ASR代理
+      "/api/asr": {
+        target: "http://192.168.3.34:9999",
+        changeOrigin: true,
+        pathRewrite: { "^/api/asr": "/api/v1/asr" },
+        logLevel: "debug",
+      }
     },
   },
 });

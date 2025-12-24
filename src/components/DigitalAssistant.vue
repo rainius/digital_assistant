@@ -169,10 +169,10 @@ import 'recorder-core/src/engine/wav';
 // --- 语音识别核心逻辑 ---
 const isRecording = ref(false); // 是否正在录音
 const isRecognizing = ref(false); // 是否正在请求API识别
-const asrApiUrl = 'http://192.168.3.34:9999/api/v1/asr'; // SenseVoice API 地址
+const asrApiUrl = '/api/asr'; // SenseVoice API 地址
 
 // 【修改】不再使用 mediaRecorder，改用 recorder-core 实例
-let rec = null; 
+let rec = null;
 // let audioChunks = [];
 
 // 1. 切换录音状态（绑定到按钮点击）
@@ -224,20 +224,20 @@ const startCapture = async () => {
 const stopCapture = () => {
   if (rec && isRecording.value) {
     console.log('[Audio] 停止录音，处理中...');
-    
+
     // 停止录音，获取 Blob
     rec.stop((blob, duration) => {
       console.log(duration);
       isRecording.value = false;
-      
+
       // 关闭麦克风，释放资源
-      rec.close(); 
+      rec.close();
       rec = null;
 
       // ★ 核心整合：立即触发识别
       // blob 已经是标准的 wav 文件流了
       processRecognition(blob);
-      
+
     }, (msg) => {
       console.error("录音失败:", msg);
       isRecording.value = false;
@@ -695,22 +695,49 @@ const sendAIMessage = async () => {
 
       // 【关键修改】过滤掉过小的数据包（例如小于 100 字节的可能是头部信息或静音帧）
       // 避免无效的 speak 调用导致播放队列混乱
-      if (!value || value.byteLength < 100) {
-        console.log("Skipping small/empty chunk:", value ? value.byteLength : 0);
+      if (!value || value.byteLength === 0) {
+        console.log("Skipping empty chunk:", value ? value.byteLength : 0);
         continue;
       }
 
       console.log("--------------------value");
       console.log(value);
+
+      oggBuf = concatU8(oggBuf, value);
+
+      const { files, rest } = extractOggByEOS(oggBuf);
+      oggBuf = rest;
+
+      for (const oneOgg of files) {
+        const audioBlob = new Blob([oneOgg], { type: "audio/ogg" });
+        if (DEBUG_SAVE) {
+          saveBlob(audioBlob, `tts_seg_${String(segIndex++).padStart(4, "0")}.ogg`);
+        }
+        const audioUrl = URL.createObjectURL(audioBlob);
+        audioQueue.push(audioUrl);
+        processAudioQueue(model);
+      }
+
+      // 最简单：直接用 value（推荐）
+      // const audioBlob = new Blob([value], { type: 'audio/ogg' });
+
+      // 或者严谨 slice（确保只取该视图对应的字节范围）
+      // const sliced = value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength);
+      // const audioBlob = new Blob([sliced], { type: 'audio/ogg' });
+
+      // if (DEBUG_SAVE) {
+      //   saveBlob(audioBlob, `tts_seg_${String(segIndex++).padStart(4, "0")}.ogg`);
+      // }
+
       // 1. 创建 Blob
-      const audioBlob = new Blob([value.buffer], { type: 'audio/ogg' });
+      // const audioBlob = new Blob([value.buffer], { type: 'audio/ogg' });
       // 2. 创建 URL
-      const audioUrl = URL.createObjectURL(audioBlob);
-      console.log("processAudioQueue - push", audioUrl);
+      // const audioUrl = URL.createObjectURL(audioBlob);
+      // console.log("processAudioQueue - push", audioUrl);
       // 3. 推入队列
-      audioQueue.push(audioUrl);
+      // audioQueue.push(audioUrl);
       // 4. 尝试触发播放（如果当前没在播，就会立即开始；如果正在播，这行代码无副作用）
-      processAudioQueue(model);
+      // processAudioQueue(model);
     }
     // const audioBlob = await resp.blob();
     // const url = URL.createObjectURL(audioBlob);
@@ -723,7 +750,69 @@ const sendAIMessage = async () => {
   scrollToBottom();
 };
 
+let oggBuf = new Uint8Array(0);
 
+function concatU8(a, b) {
+  const out = new Uint8Array(a.length + b.length);
+  out.set(a, 0);
+  out.set(b, a.length);
+  return out;
+}
+
+function extractOggByEOS(buf) {
+  const files = [];
+  let pos = 0;
+
+  // 从 buf 中逐页解析
+  // eslint-disable-next-line
+  while (true) {
+    // 至少要有 page header
+    if (buf.length - pos < 27) break;
+
+    // 同步到 "OggS"
+    if (buf[pos] !== 0x4f || buf[pos + 1] !== 0x67 || buf[pos + 2] !== 0x67 || buf[pos + 3] !== 0x53) {
+      pos += 1;
+      continue;
+    }
+
+    const headerType = buf[pos + 5];     // header_type_flag
+    const segCount = buf[pos + 26];    // page_segments
+    const segStart = pos + 27;
+
+    if (buf.length - segStart < segCount) break;
+
+    let bodyLen = 0;
+    for (let i = 0; i < segCount; i++) bodyLen += buf[segStart + i];
+
+    const pageLen = 27 + segCount + bodyLen;
+    if (buf.length - pos < pageLen) break;
+
+    pos += pageLen;
+
+    // EOS page => 一个完整 ogg 结束
+    if (headerType & 0x04) {
+      files.push(buf.slice(0, pos));
+      buf = buf.slice(pos);
+      pos = 0;
+    }
+  }
+
+  return { files, rest: buf.slice(pos) /* 保险：丢弃 pos 前的噪声 */ };
+}
+
+const DEBUG_SAVE = true;
+let segIndex = 0;
+
+function saveBlob(blob, filename) {
+  const a = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
 
 // 3. 滚动到底部工具函数
 const scrollToBottom = async () => {
