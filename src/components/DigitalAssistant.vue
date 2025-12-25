@@ -717,34 +717,9 @@ const sendAIMessage = async () => {
         audioQueue.push(audioUrl);
         processAudioQueue(model);
       }
-
-      // 最简单：直接用 value（推荐）
-      // const audioBlob = new Blob([value], { type: 'audio/ogg' });
-
-      // 或者严谨 slice（确保只取该视图对应的字节范围）
-      // const sliced = value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength);
-      // const audioBlob = new Blob([sliced], { type: 'audio/ogg' });
-
-      // if (DEBUG_SAVE) {
-      //   saveBlob(audioBlob, `tts_seg_${String(segIndex++).padStart(4, "0")}.ogg`);
-      // }
-
-      // 1. 创建 Blob
-      // const audioBlob = new Blob([value.buffer], { type: 'audio/ogg' });
-      // 2. 创建 URL
-      // const audioUrl = URL.createObjectURL(audioBlob);
-      // console.log("processAudioQueue - push", audioUrl);
-      // 3. 推入队列
-      // audioQueue.push(audioUrl);
-      // 4. 尝试触发播放（如果当前没在播，就会立即开始；如果正在播，这行代码无副作用）
-      // processAudioQueue(model);
     }
-    // const audioBlob = await resp.blob();
-    // const url = URL.createObjectURL(audioBlob);
-    // model.speak(url, { volume: 1, expression: 8, resetExpression: true, crossOrigin: 'anonymous' });
   } catch (error) {
     console.error('调用Coze API时发生错误:', error);
-    // ！重要：在界面上向用户显示错误信息
   }
   isThinking.value = false;
   scrollToBottom();
