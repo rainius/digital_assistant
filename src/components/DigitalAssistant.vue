@@ -94,7 +94,7 @@
             <canvas ref="canvas" id="live2d-canvas"></canvas>
           </div>
         </div>
-        <div class="subtitle">怎么去发布和上架</div>
+        <div class="subtitle"> </div>
 
         <div class="voice-interaction-container">
           <button class="voice-btn" :class="{ 'recording': isRecording }" @click="toggleVoiceRecording" title="点击开始对话">
@@ -300,7 +300,7 @@ const processRecognition = async (blob) => {
 };
 
 // 侧边栏状态
-const isSidebarOpen = ref(true);
+const isSidebarOpen = ref(false);
 const toggleSidebar = () => {
   isSidebarOpen.value = !isSidebarOpen.value;
 };
@@ -453,7 +453,7 @@ onUnmounted(() => {
 
 // -------- AI边栏 ----------
 // --- 状态定义 ---
-const isOpen = ref(false);
+const isOpen = ref(true);
 const inputText = ref('');
 const isThinking = ref(false);
 const chatBodyRef = ref(null);
@@ -483,7 +483,7 @@ const toggleAISidebar = () => {
 
 // 配置您的凭证（注意：在生产环境中，这些敏感信息不应硬编码在前端代码中）
 const botId = '7581057336081989658';
-const accessToken = 'pat_w1UVPk6EFIsDBokCWBRvbWpn8lSoSXUBM09fhRpCWuFtvtHQkeqrFGvfc8D0Hehe';
+const accessToken = 'pat_zJxOpAZ58fJlMoFOXJP2KdEhlW2m0d1dK0UwxrWI4AGegu7qbFpNGX452Yg40Y1T';
 const userId = '123456789'; // 例如 '123456789'
 
 // 定义全局变量用于管理队列
@@ -671,7 +671,7 @@ const sendAIMessage = async () => {
       body: JSON.stringify({
         text: accumulatedContent,
         text_lang: 'zh',
-        ref_audio_path: 'examples/teacher.wav',
+        ref_audio_path: 'examples/Keira.wav',
         prompt_lang: 'zh',
         prompt_text: '同学们，我们一起来学习人工智能，探索AI科技的奇幻世界吧',
         text_split_method: 'cut5',
@@ -775,7 +775,7 @@ function extractOggByEOS(buf) {
   return { files, rest: buf.slice(pos) /* 保险：丢弃 pos 前的噪声 */ };
 }
 
-const DEBUG_SAVE = true;
+const DEBUG_SAVE = false;
 let segIndex = 0;
 
 function saveBlob(blob, filename) {
