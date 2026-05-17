@@ -160,644 +160,255 @@
   </div>
 </template>
 
+
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick } from 'vue';
-// 【新增】引入录音库核心和wav编码器
-import Recorder from 'recorder-core';
-import 'recorder-core/src/engine/wav';
-// --- 新增：语音输入逻辑 ---
-// --- 语音识别核心逻辑 ---
-const isRecording = ref(false); // 是否正在录音
-const isRecognizing = ref(false); // 是否正在请求API识别
-const asrApiUrl = '/api/asr'; // SenseVoice API 地址
+import { ASRAdapter } from '../utils/asrAdapter';
+import { LLMFactory } from '../utils/llm/LLMFactory';
+import { TTSFactory } from '../utils/tts/TTSFactory';
+// import { TTSAdapter } from '../utils/tts/GptSovitsAdapter';
 
-// 【修改】不再使用 mediaRecorder，改用 recorder-core 实例
-let rec = null;
-// let audioChunks = [];
+// ================= 1. 核心服务初始化 =================
+const asrService = new ASRAdapter('/api/asr');
+// const ttsService = new TTSAdapter('/api/tts');
+// 这里我们直接使用 TTSFactory 创建一个 Edge TTS 的实例，假设你已经在本地部署了 edge-tts 后端
+const ttsService = TTSFactory.create('sherpa', { 
+  apiUrl: 'http://localhost:5001/api/local-tts', 
+});
 
-// 1. 切换录音状态（绑定到按钮点击）
-const toggleVoiceRecording = async () => {
-  // 如果正在识别中，忽略点击，防止重复提交
-  if (isRecognizing.value) return;
+// 方案 A：使用 Dify（默认）
+// const llmService = LLMFactory.create('dify', {
+//   apiUrl: 'http://127.0.0.1/v1/chat-messages',
+//   apiKey: 'app-CcU2Zv3yO4xPjTLNj6nL1BPV',
+//   userId: 'digitalhuman-001'
+// });
 
-  if (!isRecording.value) {
-    // -> 开始录音
-    await startCapture();
-  } else {
-    // -> 停止录音 (会自动触发识别)
-    stopCapture();
-  }
-};
 
-// 2. 开始捕获音频
-const startCapture = async () => {
-  try {
-    // 初始化录音实例
-    rec = Recorder({
-      type: "wav",       // 【关键】强制输出 wav 格式
-      sampleRate: 16000, // 【关键】强制采样率 16k (SenseVoice 最佳)
-      bitRate: 16,       // 16位
-      onProcess: (buffers, powerLevel, bufferDuration, bufferSampleRate) => {
-        // 如果需要做可视化波形图，可以在这里获取 powerLevel
-        console.log(buffers, powerLevel, bufferDuration, bufferSampleRate);
-      }
-    });
+//app-J6gVSRXMWo9SNKeomxcXnUyn
+const llmService = LLMFactory.create('dify', {
+  apiUrl: 'http://127.0.0.1/v1/chat-messages',
+  apiKey: 'app-J6gVSRXMWo9SNKeomxcXnUyn',
+  userId: 'digitalhuman-002'
+});
 
-    // 打开麦克风
-    rec.open(() => {
-      // 打开成功，开始录音
-      rec.start();
-      isRecording.value = true;
-      console.log('[Audio] 开始录音 (WAV 16k)...');
-    }, (msg, isUserNotAllow) => {
-      // 打开失败
-      console.error('无法启动麦克风:', msg);
-      alert((isUserNotAllow ? "用户拒绝了权限" : "无法打开麦克风") + ": " + msg);
-    });
-  } catch (error) {
-    console.error('无法启动麦克风:', error);
-    alert('无法启动麦克风，请检查权限。');
-  }
-};
+// ==========================================
+// 方案 B：随时一键切换回 Coze (如果你需要)
+// ==========================================
+/*
+const llmService = LLMFactory.create('coze', {
+  apiUrl: 'https://api.coze.cn/v3/chat', 
+  apiKey: 'pat_xxxxx',
+  botId: '7581057xxxxx',
+  userId: 'user123'
+});
+*/
 
-// 3. 停止捕获
-const stopCapture = () => {
-  if (rec && isRecording.value) {
-    console.log('[Audio] 停止录音，处理中...');
-
-    // 停止录音，获取 Blob
-    rec.stop((blob, duration) => {
-      console.log(duration);
-      isRecording.value = false;
-
-      // 关闭麦克风，释放资源
-      rec.close();
-      rec = null;
-
-      // ★ 核心整合：立即触发识别
-      // blob 已经是标准的 wav 文件流了
-      processRecognition(blob);
-
-    }, (msg) => {
-      console.error("录音失败:", msg);
-      isRecording.value = false;
-    });
-  }
-};
-
-// 4. 调用 API 进行识别
-const processRecognition = async (blob) => {
-  isRecognizing.value = true; //以此状态在UI上显示“转圈/分析中”
-
-  try {
-    const formData = new FormData();
-    const audioFile = new File([blob], 'voice_input.webm', { type: 'audio/webm' });
-
-    // 组装 API 参数
-    formData.append('files', audioFile);
-    formData.append('lang', 'auto'); // 自动检测语言，也可以写死 'zh'
-
-    console.log('[API] 发送音频数据到 SenseVoice...');
-
-    const response = await fetch(asrApiUrl, {
-      method: 'POST',
-      body: formData
-    });
-
-    if (!response.ok) throw new Error(`API Error: ${response.status}`);
-
-    const responseData = await response.json();
-    console.log('[API] 识别结果:', responseData);
-
-    // 获取文本 (根据你的API返回结构，可能是 result.text 或 result)
-    let text = "";
-    if (responseData.result && responseData.result.length > 0) {
-      text = responseData.result[0].clean_text;
-    }
-
-    console.log('[API] 提取文本:', text);
-
-    if (text) {
-      // ★ 核心整合：将识别结果填入 AI 侧边栏的输入框并发送
-      // 1. 打开侧边栏（如果没开）
-      if (!isOpen.value) toggleAISidebar();
-
-      // 2. 填入文本
-      inputText.value = text;
-
-      // 3. 稍作延迟后自动发送 (可选，为了让用户看到识别出的字)
-      setTimeout(() => {
-        sendAIMessage();
-      }, 500);
-    }
-
-  } catch (error) {
-    console.error('语音识别失败:', error);
-    inputText.value = "[语音识别失败，请重试]";
-  } finally {
-    isRecognizing.value = false;
-  }
-};
-
-// 侧边栏状态
+// ================= 2. 状态变量 =================
+// UI 状态
 const isSidebarOpen = ref(false);
-const toggleSidebar = () => {
-  isSidebarOpen.value = !isSidebarOpen.value;
-};
-
-// ... (保留原本的其他所有 script 逻辑，无需改动) ...
-const selectedScene = ref('nova');
-const eyeTracking = ref('follow');
-const modelSize = ref(2.0);
-const chatInput = ref('你能做什么');
-const defaultText = '我可以基于【马斯克·陈】提供的关爱老婆百事通里包含的老婆喜好、喜欢的东西、习惯、身体状况等信息，分析老婆的情况并给出行动建议。';
-const chatResponse = ref(defaultText);
-const ttsInput = ref(defaultText);
-const isDragging = ref(false);
-const dragStart = ref({ x: 0, y: 0 });
-const characterPosition = ref({ x: 0, y: 0 });
-
-const startDrag = (e) => {
-  if (e.button !== 0) return;
-  isDragging.value = true;
-  dragStart.value = {
-    x: e.clientX - characterPosition.value.x,
-    y: e.clientY - characterPosition.value.y,
-  };
-  e.preventDefault();
-};
-
-const onDrag = (e) => {
-  if (!isDragging.value) return;
-  e.preventDefault();
-  const modelViewport = document.querySelector('.model-viewport');
-  const characterWrapper = document.querySelector('.character-wrapper');
-  if (!modelViewport || !characterWrapper) return;
-  const viewportRect = modelViewport.getBoundingClientRect();
-  const wrapperRect = characterWrapper.getBoundingClientRect();
-  const maxX = viewportRect.width / 2 - wrapperRect.width / 2;
-  const maxY = viewportRect.height / 2 - wrapperRect.height / 2;
-  characterPosition.value = {
-    x: Math.min(Math.max(e.clientX - dragStart.value.x, -maxX), maxX),
-    y: Math.min(Math.max(e.clientY - dragStart.value.y, -maxY), maxY),
-  };
-};
-
-const stopDrag = () => {
-  isDragging.value = false;
-};
-const sendMessage = () => console.log('发送消息:', chatInput.value);
-
-
-//---------- 数字人 ---------------
-// 引用canvas元素
-const canvas = ref(null);
-const live2dContainer = ref(null);
-// 保存model引用以便在组件中使用
-let model = null;
-// let motionSync = null;
-let app1 = null;
-
-// 定义测试音频的函数
-const handlePlayTestAudio = () => {
-  console.log('开始播放测试音频...');
-  let spk = "./Keira.wav";
-  playTestAudio(spk);
-};
-
-// 播放测试音频
-const playTestAudio = (spk) => {
-  console.log("播放测试音频");
-  console.log(model);
-  console.log(model.speak);
-  if (model) {
-    // 使用模型说话功能播放音频
-    model.speak(spk, {
-      volume: 1,
-      expression: 8,
-      resetExpression: true,
-      crossOrigin: "anonymous",
-    });
-  } else {
-    console.warn("模型未加载，无法播放音频");
-  }
-};
-
-onMounted(async () => {
-  window.addEventListener('mousemove', onDrag);
-  window.addEventListener('mouseup', stopDrag);
-
-  // 实际项目中可以计算图片宽度居中，这里暂时写死
-  // 确保所需的库已经在全局可用
-  const PIXI = window.PIXI;
-  const live2d = PIXI.live2d;
-
-  if (!PIXI || !live2d) {
-    console.error("PIXI或live2d库未加载");
-    return;
-  }
-  console.log("Resize", live2dContainer.value);
-  try {
-    // 创建第一个应用和渲染上下文
-    app1 = new PIXI.Application({
-      view: canvas.value,
-      autoStart: true,
-      resizeTo: live2dContainer.value,
-      autoResize: true,
-      transparent: true,
-      backgroundAlpha: 0,
-      antialias: true,
-    });
-
-  } catch (error) {
-    console.error(error);
-  }
-
-  setTimeout(async () => {
-    try {
-      // const modelPath = "./models/${selectedScene.value}/${selectedScene.value}.model3.json";
-      const modelPath = "./models/pachan/pachan.model3.json";
-      console.log("Model", selectedScene.value);
-      const loadedModel2 = await live2d.Live2DModel.from(modelPath, { autoInteract: true });
-      loadedModel2.position.x = 0
-      loadedModel2.position.y = 0
-
-      // 设置模型大小和位置...
-      const containerWidth = live2dContainer.value.clientWidth;
-      const containerHeight = live2dContainer.value.clientHeight;
-      const scale = Math.min(
-        containerWidth / loadedModel2.width,
-        containerHeight / loadedModel2.height
-      );
-      loadedModel2.scale.set(scale);
-      model = loadedModel2;
-      // 设置点击事件
-      loadedModel2.on("hit", (hitAreas) => {
-        if (hitAreas.includes("Body")) {
-          loadedModel2.motion("Tap");
-        }
-        if (hitAreas.includes("Head")) {
-          loadedModel2.expression();
-        }
-      });
-      app1.stage.addChild(loadedModel2);
-    } catch (error) {
-      console.error(error);
-    }
-  }, 3000); // 500毫秒延迟
-});
-onUnmounted(() => {
-  window.removeEventListener('mousemove', onDrag);
-  window.removeEventListener('mouseup', stopDrag);
-});
-
-// -------- AI边栏 ----------
-// --- 状态定义 ---
 const isOpen = ref(true);
-const inputText = ref('');
+const modelSize = ref(2.0);
+const eyeTracking = ref('follow');
+const selectedScene = ref('nova');
+
+// 聊天状态
+const isRecording = ref(false);
+const isRecognizing = ref(false);
 const isThinking = ref(false);
+const inputText = ref('');
+const messages = ref([{ role: 'ai', content: '您好！我是您的智能助手。<br>有什么我可以帮您的吗？' }]);
 const chatBodyRef = ref(null);
 const inputRef = ref(null);
 
-// 初始消息数据
-const messages = ref([
-  {
-    role: 'ai',
-    content: '您好！我是您的智能助手。<br>有什么我可以帮您的吗？'
-  }
-]);
+// 数字人模型与拖拽
+const canvas = ref(null);
+const live2dContainer = ref(null);
+const isDragging = ref(false);
+const dragStart = ref({ x: 0, y: 0 });
+const characterPosition = ref({ x: 0, y: 0 });
+let model = null;
+let app1 = null;
 
-// --- 方法逻辑 ---
+// 音频队列
+const audioQueue = [];
+let isPlaying = false;
 
-// 1. 切换侧边栏状态
-const toggleAISidebar = () => {
-  isOpen.value = !isOpen.value;
-  if (isOpen.value) {
-    // 展开时自动聚焦输入框
-    nextTick(() => {
-      inputRef.value?.focus();
-      scrollToBottom();
-    });
+// ================= 3. 语音与对话逻辑调度 =================
+
+// 切换录音
+const toggleVoiceRecording = async () => {
+  if (isRecognizing.value) return;
+
+  if (!isRecording.value) {
+    await asrService.start();
+    isRecording.value = true;
+  } else {
+    isRecording.value = false;
+    isRecognizing.value = true;
+    try {
+      const text = await asrService.stopAndRecognize();
+      if (text) {
+        inputText.value = text;
+        if (!isOpen.value) toggleAISidebar();
+        setTimeout(() => sendAIMessage(), 500); // 自动发送
+      }
+    } catch (e) {
+      console.error('语音识别失败:', e);
+      inputText.value = "[语音识别失败，请重试]";
+    } finally {
+      isRecognizing.value = false;
+    }
   }
 };
 
-// 配置您的凭证（注意：在生产环境中，这些敏感信息不应硬编码在前端代码中）
-const botId = '7581057336081989658';
-const accessToken = 'pat_zJxOpAZ58fJlMoFOXJP2KdEhlW2m0d1dK0UwxrWI4AGegu7qbFpNGX452Yg40Y1T';
-const userId = '123456789'; // 例如 '123456789'
+// 发送文字消息
+const sendAIMessage = async () => {
+  const text = inputText.value.trim();
+  if (!text) return;
 
-// 定义全局变量用于管理队列
-var audioQueue = [];
-var isPlaying = false;
+  messages.value.push({ role: 'user', content: text });
+  inputText.value = '';
+  isThinking.value = true;
+  await scrollToBottom();
 
-// 队列处理函数
-const processAudioQueue = async (model) => {
-  if (isPlaying || audioQueue.length === 0) return;
+  const aiMsgIndex = messages.value.push({ role: 'ai', content: "" }) - 1;
+
+  try {
+    // 调用封装好的 LLM 流式接口
+    await llmService.streamChat(
+      text,
+      // onChunk 回调：打字机效果
+      (chunk) => {
+
+        messages.value[aiMsgIndex].content += chunk;
+        scrollToBottom();
+      },
+      // onComplete 回调：思考完毕，开始语音合成
+      async (fullText) => {
+        isThinking.value = false;
+        fullText = cleanTextForTTS(fullText);
+        // 调用封装好的 TTS 接口
+        await ttsService.streamTTS(fullText, (audioUrl) => {
+          audioQueue.push(audioUrl);
+          processAudioQueue(); // 触发播放
+        });
+      }
+    );
+  } catch (error) {
+    console.error('LLM API 错误:', error);
+    isThinking.value = false;
+  }
+};
+
+const cleanTextForTTS = (rawText) => {
+  return rawText
+    // 1. 剔除 Markdown 特殊符号：# * ` > - ~
+    .replace(/[#*`>~-]/g, '')
+    // 2. 将多余的换行符替换为逗号（让 TTS 引擎保持顺畅的呼吸停顿，而不是断音）
+    .replace(/\n+/g, '，')
+    // 3. 去除可能残留的 URL 链接（TTS 读链接会疯掉）
+    .replace(/https?:\/\/[^\s]+/g, '')
+    // 4. 清理多余的空格
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+// ================= 4. Live2D 播放音频队列 =================
+const processAudioQueue = async () => {
+  if (isPlaying || audioQueue.length === 0 || !model) return;
 
   isPlaying = true;
   const audioUrl = audioQueue.shift();
 
   try {
-    console.log("开始播放片段...");
-
-    // await 会一直暂停在这里，直到 talk 里的 onFinish 被触发
-    await talk(model, audioUrl);
-
-    // (可选) 极短的缓冲，让连续发音之间的衔接更自然（比如 50ms）
-    // 如果想要机关枪语速，可以去掉这行
+    await new Promise((resolve) => {
+      model.speak(audioUrl, {
+        volume: 1, expression: 8, resetExpression: true, crossOrigin: "anonymous",
+        onFinish: resolve,
+        onError: resolve
+      });
+    });
+    // 可选：极短的缓冲衔接
     await new Promise(r => setTimeout(r, 50));
-
-  } catch (err) {
-    console.error("队列错误:", err);
   } finally {
-    // 释放内存
     URL.revokeObjectURL(audioUrl);
     isPlaying = false;
-    // 递归处理下一段
-    processAudioQueue(model);
+    processAudioQueue();
   }
-}
-
-const talk = (model, audio_link) => {
-  return new Promise((resolve) => {
-
-    model.speak(audio_link, {
-      volume: 1,
-      expression: 8,
-      resetExpression: true,
-      crossOrigin: "anonymous",
-
-      // 【核心逻辑】
-      // 当音频自然播放结束时，库会调用这个函数
-      onFinish: () => {
-        console.log("当前片段播放完毕");
-        resolve(); // 解除 await 阻塞，允许队列播放下一段
-      },
-
-      // 如果加载出错，也要 resolve，防止队列卡死
-      onError: (err) => {
-        console.error("播放出错:", err);
-        resolve();
-      }
-    }).catch(e => {
-      // 捕获 speak 方法本身的同步错误
-      console.error("调用 speak 失败:", e);
-      resolve();
-    });
-
-  });
-}
-
-// 2. 发送消息
-const sendAIMessage = async () => {
-  const text = inputText.value.trim();
-  console.log("[COZE] text", text);
-  if (!text) return;
-
-  // 添加用户消息
-  messages.value.push({ role: 'user', content: text });
-  inputText.value = '';
-  scrollToBottom();
-
-  // 模拟 AI 思考状态
-  isThinking.value = true;
-  await scrollToBottom();
-
-  // 1. 构建请求体
-  const requestBody = {
-    bot_id: botId,
-    user_id: userId,
-    stream: true, // 启用流式传输
-    additional_messages: [
-      {
-        role: 'user',
-        content: text,
-        content_type: 'text',
-        type: 'question'
-      }
-    ]
-  };
-
-  try {
-    // 2. 发起Fetch请求
-    const response = await fetch('https://api.coze.cn/v3/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
-      },
-      body: JSON.stringify(requestBody)
-    });
-
-    // 3. 检查响应是否正常
-    if (!response.ok) {
-      throw new Error(`网络响应异常: ${response.status}`);
-    }
-
-    // 4. 获取可读流
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder('utf-8');
-    let currentEventType = "";   // 记录当前行的事件类型
-    var accumulatedContent = ''; // 用于累积AI返回的消息
-
-    messages.value.push({ role: 'ai', content: "" });
-    const lastMsgIndex = messages.value.length - 1;
-    // 5. 循环读取流数据
-    for (; ;) {
-      const { done, value } = await reader.read();
-      if (done) break; // 流读取结束
-
-      // 解码数据块
-      const chunk = decoder.decode(value, { stream: true });
-      // 按换行符分割，因为SSE数据是以"data: "开头的多行文本 [1](@ref)
-      const lines = chunk.split('\n');
-
-      for (const line of lines) {
-        console.log(line);
-        const trimmedLine = line.trim();
-        if (!trimmedLine) continue; // 忽略空行和结束信号
-
-        // 1. 识别事件类型行
-        if (trimmedLine.startsWith('event:')) {
-          currentEventType = trimmedLine.replace('event:', '').trim();
-        }
-        // 2. 识别数据行
-        else if (trimmedLine.startsWith('data:') && currentEventType) {
-          const jsonDataStr = trimmedLine.replace('data:', '').trim();
-
-          // 检查流式传输结束标志[3](@ref)
-          if (jsonDataStr === '[DONE]') {
-            console.log('Stream finished.');
-            break;
-          }
-
-          try {
-            const data = JSON.parse(jsonDataStr);
-
-            // 3. 核心逻辑：根据事件类型进行分支处理
-            if (currentEventType === 'conversation.message.delta') {
-              // 处理增量内容
-              if (data.type === 'answer' && data.content) {
-                accumulatedContent += data.content; // 累积内容
-                messages.value[lastMsgIndex].content += data.content;
-                // 实时更新UI，实现打字机效果[3](@ref)
-                // updateUI(accumulatedContent);
-              }
-            } else if (currentEventType === 'conversation.message.completed') {
-              // 处理完成事件
-              if (data.type === 'verbose') {
-                const contentObj = JSON.parse(data.content);
-                if (contentObj.msg_type === 'generate_answer_finish') {
-                  // 确认对话完成，进行收尾工作[1](@ref)
-                  // handleConversationComplete(accumulatedContent);
-                  console.log("Result", accumulatedContent);
-                }
-              }
-            }
-          } catch (e) {
-            console.error('Parsing error:', e, 'Raw data:', jsonDataStr);
-          }
-          // 重置当前事件类型，等待下一组事件/数据
-          currentEventType = "";
-        }
-      }
-    }
-    // 对话完成，可以将完整的accumulatedMessage存入历史记录
-    //数字人朗读，后续来做精细处理，先实现
-    // console.log("Answer", accumulatedContent);
-    const resp = await fetch('/api/tts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text: accumulatedContent,
-        text_lang: 'zh',
-        ref_audio_path: 'examples/Keira.wav',
-        prompt_lang: 'zh',
-        prompt_text: '同学们，我们一起来学习人工智能，探索AI科技的奇幻世界吧',
-        text_split_method: 'cut5',
-        batch_size: 1,
-        media_type: 'ogg',
-        speed_factor: 1.0,
-        streaming_mode: "true"
-      }),
-    });
-
-    const ttsReader = resp.body.getReader();
-    let count = 0;
-    while (count === 0) {
-      const { done, value } = await ttsReader.read();
-      if (done) {
-        console.log("Stream done");
-        //用户界面元素激活
-        // $("#start_stream").prop("disabled", false);
-        break;
-      }
-
-      // 【关键修改】过滤掉过小的数据包（例如小于 100 字节的可能是头部信息或静音帧）
-      // 避免无效的 speak 调用导致播放队列混乱
-      if (!value || value.byteLength === 0) {
-        console.log("Skipping empty chunk:", value ? value.byteLength : 0);
-        continue;
-      }
-
-      console.log("--------------------value");
-      console.log(value);
-
-      oggBuf = concatU8(oggBuf, value);
-
-      const { files, rest } = extractOggByEOS(oggBuf);
-      oggBuf = rest;
-
-      for (const oneOgg of files) {
-        const audioBlob = new Blob([oneOgg], { type: "audio/ogg" });
-        if (DEBUG_SAVE) {
-          saveBlob(audioBlob, `tts_seg_${String(segIndex++).padStart(4, "0")}.ogg`);
-        }
-        const audioUrl = URL.createObjectURL(audioBlob);
-        audioQueue.push(audioUrl);
-        processAudioQueue(model);
-      }
-    }
-  } catch (error) {
-    console.error('调用Coze API时发生错误:', error);
-  }
-  isThinking.value = false;
-  scrollToBottom();
 };
 
-let oggBuf = new Uint8Array(0);
-
-function concatU8(a, b) {
-  const out = new Uint8Array(a.length + b.length);
-  out.set(a, 0);
-  out.set(b, a.length);
-  return out;
-}
-
-function extractOggByEOS(buf) {
-  const files = [];
-  let pos = 0;
-
-  // 从 buf 中逐页解析
-  // eslint-disable-next-line
-  while (true) {
-    // 至少要有 page header
-    if (buf.length - pos < 27) break;
-
-    // 同步到 "OggS"
-    if (buf[pos] !== 0x4f || buf[pos + 1] !== 0x67 || buf[pos + 2] !== 0x67 || buf[pos + 3] !== 0x53) {
-      pos += 1;
-      continue;
-    }
-
-    const headerType = buf[pos + 5];     // header_type_flag
-    const segCount = buf[pos + 26];    // page_segments
-    const segStart = pos + 27;
-
-    if (buf.length - segStart < segCount) break;
-
-    let bodyLen = 0;
-    for (let i = 0; i < segCount; i++) bodyLen += buf[segStart + i];
-
-    const pageLen = 27 + segCount + bodyLen;
-    if (buf.length - pos < pageLen) break;
-
-    pos += pageLen;
-
-    // EOS page => 一个完整 ogg 结束
-    if (headerType & 0x04) {
-      files.push(buf.slice(0, pos));
-      buf = buf.slice(pos);
-      pos = 0;
-    }
-  }
-
-  return { files, rest: buf.slice(pos) /* 保险：丢弃 pos 前的噪声 */ };
-}
-
-const DEBUG_SAVE = false;
-let segIndex = 0;
-
-function saveBlob(blob, filename) {
-  const a = document.createElement("a");
-  const url = URL.createObjectURL(blob);
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
-}
-
-// 3. 滚动到底部工具函数
+// ================= 5. UI 杂项与 Live2D 挂载 =================
+const toggleSidebar = () => isSidebarOpen.value = !isSidebarOpen.value;
+const toggleAISidebar = () => {
+  isOpen.value = !isOpen.value;
+  if (isOpen.value) nextTick(() => { inputRef.value?.focus(); scrollToBottom(); });
+};
 const scrollToBottom = async () => {
-  await nextTick(); // 等待 DOM 更新
-  if (chatBodyRef.value) {
-    chatBodyRef.value.scrollTop = chatBodyRef.value.scrollHeight;
-  }
+  await nextTick();
+  if (chatBodyRef.value) chatBodyRef.value.scrollTop = chatBodyRef.value.scrollHeight;
 };
 
+// 拖拽逻辑
+const startDrag = (e) => {
+  if (e.button !== 0) return;
+  isDragging.value = true;
+  dragStart.value = { x: e.clientX - characterPosition.value.x, y: e.clientY - characterPosition.value.y };
+  e.preventDefault();
+};
+const onDrag = (e) => {
+  if (!isDragging.value) return;
+  e.preventDefault();
+  const vp = document.querySelector('.model-viewport')?.getBoundingClientRect();
+  const cw = document.querySelector('.character-wrapper')?.getBoundingClientRect();
+  if (!vp || !cw) return;
+  const maxX = vp.width / 2 - cw.width / 2;
+  const maxY = vp.height / 2 - cw.height / 2;
+  characterPosition.value = {
+    x: Math.min(Math.max(e.clientX - dragStart.value.x, -maxX), maxX),
+    y: Math.min(Math.max(e.clientY - dragStart.value.y, -maxY), maxY),
+  };
+};
+const stopDrag = () => isDragging.value = false;
+
+onMounted(async () => {
+  window.addEventListener('mousemove', onDrag);
+  window.addEventListener('mouseup', stopDrag);
+
+  const PIXI = window.PIXI;
+  const live2d = PIXI?.live2d;
+  if (!PIXI || !live2d) return console.error("PIXI或live2d库未加载");
+
+  app1 = new PIXI.Application({
+    view: canvas.value, autoStart: true, resizeTo: live2dContainer.value,
+    autoResize: true, transparent: true, backgroundAlpha: 0, antialias: true,
+  });
+
+  setTimeout(async () => {
+    try {
+      // const modelPath = "./models/pachan/pachan.model3.json";
+      const modelPath = "./models/芍药/芍药身体运动.model3.json";
+      model = await live2d.Live2DModel.from(modelPath, { autoInteract: true });
+      model.position.set(0, 0);
+      
+      const scale = Math.min(live2dContainer.value.clientWidth / model.width, live2dContainer.value.clientHeight / model.height);
+      model.scale.set(scale);
+      
+      model.on("hit", (hitAreas) => {
+        if (hitAreas.includes("Body")) model.motion("Tap");
+        if (hitAreas.includes("Head")) model.expression();
+      });
+      app1.stage.addChild(model);
+    } catch (e) { console.error("模型加载错误", e); }
+  }, 3000);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('mousemove', onDrag);
+  window.removeEventListener('mouseup', stopDrag);
+});
 </script>
+
+
 <style scoped>
 /* 全局容器 */
 .page-container {

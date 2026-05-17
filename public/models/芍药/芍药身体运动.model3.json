@@ -1,0 +1,23 @@
+{
+	"Version": 3,
+	"FileReferences": {
+		"Moc": "芍药身体运动.moc3",
+		"Textures": [
+			"芍药身体运动.1024/texture_00.png"
+		],
+		"Physics": "芍药身体运动.physics3.json",
+		"DisplayInfo": "芍药身体运动.cdi3.json"
+	},
+	"Groups": [
+		{
+			"Target": "Parameter",
+			"Name": "EyeBlink",
+			"Ids": []
+		},
+		{
+			"Target": "Parameter",
+			"Name": "LipSync",
+			"Ids": []
+		}
+	]
+}
