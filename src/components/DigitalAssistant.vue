@@ -90,9 +90,10 @@
           transform: `scale(${modelSize / 2}) translate(${characterPosition.x}px, ${characterPosition.y}px)`,
           cursor: isDragging ? 'grabbing' : 'grab'
         }" @mousedown="startDrag">
-          <div class="live2d-container" ref="live2dContainer">
+          <!-- <div class="live2d-container" ref="live2dContainer">
             <canvas ref="canvas" id="live2d-canvas"></canvas>
-          </div>
+          </div> -->
+          <div ref="avatarContainer" class="avatar-container" style="width: 100%; height: 100%;"></div>
         </div>
         <div class="subtitle"> </div>
 
@@ -163,45 +164,29 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick } from 'vue';
-import { ASRAdapter } from '../utils/asrAdapter';
+// import { ASRAdapter } from '../utils/asrAdapter';
+import { ASRFactory } from '../utils/asr/ASRFactory';
 import { LLMFactory } from '../utils/llm/LLMFactory';
 import { TTSFactory } from '../utils/tts/TTSFactory';
-// import { TTSAdapter } from '../utils/tts/GptSovitsAdapter';
+import { AvatarFactory } from '../utils/avatar/AvatarFactory';
 
 // ================= 1. 核心服务初始化 =================
-const asrService = new ASRAdapter('/api/asr');
-// const ttsService = new TTSAdapter('/api/tts');
-// 这里我们直接使用 TTSFactory 创建一个 Edge TTS 的实例，假设你已经在本地部署了 edge-tts 后端
+// 【耳朵】语音识别
+const asrService = ASRFactory.create('sensevoice', {
+  apiUrl: 'http://localhost:9999/api/v1/asr', // 你的 SenseVoice 地址
+  lang: 'auto'
+});
+// 【嘴巴】语音合成（Sherpa 或 Edge）
 const ttsService = TTSFactory.create('sherpa', { 
   apiUrl: 'http://localhost:5001/api/local-tts', 
 });
 
-// 方案 A：使用 Dify（默认）
-// const llmService = LLMFactory.create('dify', {
-//   apiUrl: 'http://127.0.0.1/v1/chat-messages',
-//   apiKey: 'app-CcU2Zv3yO4xPjTLNj6nL1BPV',
-//   userId: 'digitalhuman-001'
-// });
-
-
-//app-J6gVSRXMWo9SNKeomxcXnUyn
+// 【大脑】大模型（Dify 或 Coze）
 const llmService = LLMFactory.create('dify', {
   apiUrl: 'http://127.0.0.1/v1/chat-messages',
   apiKey: 'app-J6gVSRXMWo9SNKeomxcXnUyn',
   userId: 'digitalhuman-002'
 });
-
-// ==========================================
-// 方案 B：随时一键切换回 Coze (如果你需要)
-// ==========================================
-/*
-const llmService = LLMFactory.create('coze', {
-  apiUrl: 'https://api.coze.cn/v3/chat', 
-  apiKey: 'pat_xxxxx',
-  botId: '7581057xxxxx',
-  userId: 'user123'
-});
-*/
 
 // ================= 2. 状态变量 =================
 // UI 状态
@@ -221,13 +206,16 @@ const chatBodyRef = ref(null);
 const inputRef = ref(null);
 
 // 数字人模型与拖拽
-const canvas = ref(null);
-const live2dContainer = ref(null);
+// const canvas = ref(null);
+// const live2dContainer = ref(null);
+const avatarContainer = ref(null); 
 const isDragging = ref(false);
 const dragStart = ref({ x: 0, y: 0 });
 const characterPosition = ref({ x: 0, y: 0 });
-let model = null;
-let app1 = null;
+// let model = null;
+// let app1 = null;
+
+let avatarInstance = null;
 
 // 音频队列
 const audioQueue = [];
@@ -304,35 +292,56 @@ const cleanTextForTTS = (rawText) => {
   return rawText
     // 1. 剔除 Markdown 特殊符号：# * ` > - ~
     .replace(/[#*`>~-]/g, '')
-    // 2. 将多余的换行符替换为逗号（让 TTS 引擎保持顺畅的呼吸停顿，而不是断音）
+    
+    // 2. 将多余的换行符先替换为中文逗号
     .replace(/\n+/g, '，')
-    // 3. 去除可能残留的 URL 链接（TTS 读链接会疯掉）
+    
+    // 3. 去除可能残留的 URL 链接
     .replace(/https?:\/\/[^\s]+/g, '')
-    // 4. 清理多余的空格
+    
+    // 4. 【新增方案一核心】将中文标点替换为“英文标点 + 空格”，强制触发 espeak-ng 的呼吸停顿
+    .replace(/，/g, ', ')  // 刚才换行符变的中文逗号，也会在这里被一起处理
+    .replace(/。/g, '. ')
+    .replace(/！/g, '! ')
+    .replace(/？/g, '? ')
+    .replace(/、/g, ', ')  // 把顿号也当成逗号来停顿
+    
+    // 5. 清理多余的空格（注意：\s+ 只会把多个连续空格变成一个，不会吃掉我们在上一步故意加的单个空格）
     .replace(/\s+/g, ' ')
     .trim();
 };
 
-// ================= 4. Live2D 播放音频队列 =================
+// ================= 4. Avatar 播放音频队列 =================
 const processAudioQueue = async () => {
-  if (isPlaying || audioQueue.length === 0 || !model) return;
+  
+  if (isPlaying || audioQueue.length === 0) return;
 
   isPlaying = true;
   const audioUrl = audioQueue.shift();
+  
 
   try {
-    await new Promise((resolve) => {
-      model.speak(audioUrl, {
-        volume: 1, expression: 8, resetExpression: true, crossOrigin: "anonymous",
-        onFinish: resolve,
-        onError: resolve
-      });
-    });
-    // 可选：极短的缓冲衔接
+    if (avatarInstance) {
+      // 大模型开始思考，切换思考表情
+  avatarInstance.setEmotion('thinking');
+  // 拿到音频后，让数字人说话
+  await avatarInstance.speak(audioUrl);
+  // 说完恢复平静
+  avatarInstance.setEmotion('neutral');
+    }
+    
+    // 可选：两句话之间增加极其短暂的缓冲衔接，让听感更自然
     await new Promise(r => setTimeout(r, 50));
+    
+  } catch (error) {
+    console.error("音频播放被中断或出错:", error);
   } finally {
+    // 【极其重要】播放完必须销毁对象 URL，否则前端内存会瞬间爆炸
     URL.revokeObjectURL(audioUrl);
+    // 释放锁
     isPlaying = false;
+    
+    // 递归调用自己，去检查队列里还有没有剩下没读完的句子
     processAudioQueue();
   }
 };
@@ -355,56 +364,35 @@ const startDrag = (e) => {
   dragStart.value = { x: e.clientX - characterPosition.value.x, y: e.clientY - characterPosition.value.y };
   e.preventDefault();
 };
-const onDrag = (e) => {
-  if (!isDragging.value) return;
-  e.preventDefault();
-  const vp = document.querySelector('.model-viewport')?.getBoundingClientRect();
-  const cw = document.querySelector('.character-wrapper')?.getBoundingClientRect();
-  if (!vp || !cw) return;
-  const maxX = vp.width / 2 - cw.width / 2;
-  const maxY = vp.height / 2 - cw.height / 2;
-  characterPosition.value = {
-    x: Math.min(Math.max(e.clientX - dragStart.value.x, -maxX), maxX),
-    y: Math.min(Math.max(e.clientY - dragStart.value.y, -maxY), maxY),
-  };
-};
-const stopDrag = () => isDragging.value = false;
+// const onDrag = (e) => {
+//   if (!isDragging.value) return;
+//   e.preventDefault();
+//   const vp = document.querySelector('.model-viewport')?.getBoundingClientRect();
+//   const cw = document.querySelector('.character-wrapper')?.getBoundingClientRect();
+//   if (!vp || !cw) return;
+//   const maxX = vp.width / 2 - cw.width / 2;
+//   const maxY = vp.height / 2 - cw.height / 2;
+//   characterPosition.value = {
+//     x: Math.min(Math.max(e.clientX - dragStart.value.x, -maxX), maxX),
+//     y: Math.min(Math.max(e.clientY - dragStart.value.y, -maxY), maxY),
+//   };
+// };
+// const stopDrag = () => isDragging.value = false;
 
 onMounted(async () => {
-  window.addEventListener('mousemove', onDrag);
-  window.addEventListener('mouseup', stopDrag);
-
-  const PIXI = window.PIXI;
-  const live2d = PIXI?.live2d;
-  if (!PIXI || !live2d) return console.error("PIXI或live2d库未加载");
-
-  app1 = new PIXI.Application({
-    view: canvas.value, autoStart: true, resizeTo: live2dContainer.value,
-    autoResize: true, transparent: true, backgroundAlpha: 0, antialias: true,
+  avatarInstance = AvatarFactory.create('live2d', {
+    modelPath: "./models/芍药/芍药身体运动.model3.json"
   });
-
-  setTimeout(async () => {
-    try {
-      // const modelPath = "./models/pachan/pachan.model3.json";
-      const modelPath = "./models/芍药/芍药身体运动.model3.json";
-      model = await live2d.Live2DModel.from(modelPath, { autoInteract: true });
-      model.position.set(0, 0);
-      
-      const scale = Math.min(live2dContainer.value.clientWidth / model.width, live2dContainer.value.clientHeight / model.height);
-      model.scale.set(scale);
-      
-      model.on("hit", (hitAreas) => {
-        if (hitAreas.includes("Body")) model.motion("Tap");
-        if (hitAreas.includes("Head")) model.expression();
-      });
-      app1.stage.addChild(model);
-    } catch (e) { console.error("模型加载错误", e); }
-  }, 3000);
+  // 挂载到 DOM 上
+  await avatarInstance.mount(avatarContainer.value);
 });
 
 onUnmounted(() => {
-  window.removeEventListener('mousemove', onDrag);
-  window.removeEventListener('mouseup', stopDrag);
+  if (avatarInstance) {
+    avatarInstance.destroy();
+  }
+  // window.removeEventListener('mousemove', onDrag);
+  // window.removeEventListener('mouseup', stopDrag);
 });
 </script>
 
