@@ -5,7 +5,8 @@
 export class GptSovitsAdapter {
   constructor(config) {
     this.apiUrl = config.apiUrl || '/api/tts';
-    this.refAudio = config.refAudio || 'examples/Keira.wav';
+    this.refAudio = config.refAudio || 'examples/dbes01.wav';
+    this.promptText = config.promptText || '同学们，我们一起来学习人工智能';
   }
 
   async streamTTS(text, onAudioReady) {
@@ -17,7 +18,7 @@ export class GptSovitsAdapter {
         text_lang: 'zh',
         ref_audio_path: this.refAudio,
         prompt_lang: 'zh',
-        prompt_text: '同学们，我们一起来学习人工智能',
+        prompt_text: this.promptText,
         text_split_method: 'cut5',
         batch_size: 1,
         media_type: 'ogg',
