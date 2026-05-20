@@ -1,5 +1,6 @@
 export class DifyAdapter {
   constructor(config) {
+    console.log('Dify配置参数：', config);
     this.apiUrl = config.apiUrl || 'http://127.0.0.1/v1/chat-messages';
     this.apiKey = config.apiKey;
     this.userId = config.userId || 'digital-human-user';
@@ -16,6 +17,7 @@ export class DifyAdapter {
 
     if (this.conversationId) requestBody.conversation_id = this.conversationId;
 
+    console.log('Dify请求参数：', this.apiUrl);
     const response = await fetch(this.apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKey}` },
@@ -42,6 +44,7 @@ export class DifyAdapter {
         try {
           const data = JSON.parse(dataStr);
           if (data.event === 'message') {
+            console.log('Dify消息块：', data);
             accumulatedContent += data.answer;
             onChunk(data.answer);
           } else if (data.event === 'message_end') {

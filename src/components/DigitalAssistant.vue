@@ -173,19 +173,24 @@ import { AvatarFactory } from '../utils/avatar/AvatarFactory';
 // ================= 1. 核心服务初始化 =================
 // 【耳朵】语音识别
 const asrService = ASRFactory.create('sensevoice', {
-  apiUrl: 'http://localhost:9999/api/v1/asr', // 你的 SenseVoice 地址
+  apiUrl: '/api/asr', // 你的 SenseVoice 地址
   lang: 'auto'
 });
 // 【嘴巴】语音合成（Sherpa 或 Edge）
-const ttsService = TTSFactory.create('sherpa', { 
-  apiUrl: 'http://localhost:5001/api/local-tts', 
+// const ttsService = TTSFactory.create('sherpa', { 
+//   apiUrl: 'http://localhost:5001/api/local-tts', 
+// });
+const ttsService = TTSFactory.create('gpt-sovits', { 
+  apiUrl: '/api/tts', 
+  refAudio: 'examples/dbes01.wav',
+  promptText: '欢迎来到南京大报恩寺遗址景区！这里曾是明代皇家寺院，其核心大报恩寺琉璃宝塔被誉为中世纪世界七大奇迹之一。'
 });
 
 // 【大脑】大模型（Dify 或 Coze）
-const llmService = LLMFactory.create('dify', {
-  apiUrl: 'http://127.0.0.1/v1/chat-messages',
-  apiKey: 'app-J6gVSRXMWo9SNKeomxcXnUyn',
-  userId: 'digitalhuman-002'
+const difyService = LLMFactory.create('dify', {
+  apiUrl: 'http://192.168.1.168/v1/chat-messages',
+  apiKey: 'app-SzWFJDVQBdNbNP0DrPmu98df',
+  userId: 'digitalhuman-001'
 });
 
 // ================= 2. 状态变量 =================
@@ -249,6 +254,8 @@ const toggleVoiceRecording = async () => {
   }
 };
 
+// 在组件顶部或者 setup 内部，定义一个“句子拼装厂”
+let sentenceBuffer = "";
 // 发送文字消息
 const sendAIMessage = async () => {
   const text = inputText.value.trim();
@@ -260,26 +267,66 @@ const sendAIMessage = async () => {
   await scrollToBottom();
 
   const aiMsgIndex = messages.value.push({ role: 'ai', content: "" }) - 1;
-
+  
   try {
+    // 每次发送新消息前，清空一次拼装厂
+    sentenceBuffer = "";
     // 调用封装好的 LLM 流式接口
-    await llmService.streamChat(
+    await difyService.streamChat(
       text,
       // onChunk 回调：打字机效果
       (chunk) => {
-
+        // 1. 更新 UI：屏幕上的字照常打出来
         messages.value[aiMsgIndex].content += chunk;
         scrollToBottom();
+        // 2. 积攒到我们的拼接厂里
+        sentenceBuffer += chunk;
+        console.log("当前句子缓冲区：", sentenceBuffer);
+        // 3. 核心探测：如果这块 chunk 里包含了标点符号，说明一句完整的话结束了！
+        if (/[，。！？；、,.!?]/.test(chunk)) {
+          // 清洗这句话（把标点换成适合 TTS 停顿的格式）
+          const sentenceToSpeak = cleanTextForTTS(sentenceBuffer);
+          if (sentenceToSpeak) {
+            // 【异步发射】：立刻把这句短话丢给 TTS，绝不阻塞 UI 接收下一个字！
+            // 注意：这里用我们之前重构的 fetchAudio (全量短句模式)
+            ttsService.fetchAudio(sentenceToSpeak).then((audioUrl) => {
+              if (audioUrl) {
+                audioQueue.push(audioUrl); // 塞进播放队列
+                processAudioQueue();       // 踢一脚播放引擎，让数字人开口
+              }
+            }).catch(err => console.error("TTS单句合成报错:", err));
+          }
+          // 4. 发送完后，立刻清空拼接厂，准备攒下一句话！
+          sentenceBuffer = "";
+        }
       },
       // onComplete 回调：思考完毕，开始语音合成
-      async (fullText) => {
+      async () => {
         isThinking.value = false;
-        fullText = cleanTextForTTS(fullText);
-        // 调用封装好的 TTS 接口
-        await ttsService.streamTTS(fullText, (audioUrl) => {
-          audioQueue.push(audioUrl);
-          processAudioQueue(); // 触发播放
-        });
+        
+        // 检查拼接厂里有没有“漏网之鱼”（比如最后一句话大模型没给句号）
+        if (sentenceBuffer.trim().length > 0) {
+          const finalSentence = cleanTextForTTS(sentenceBuffer);
+          if (finalSentence) {
+            try {
+              const audioUrl = await ttsService.fetchAudio(finalSentence);
+              if (audioUrl) {
+                audioQueue.push(audioUrl);
+                processAudioQueue();
+              }
+            } catch (err) {
+               console.error("最后一句TTS报错:", err);
+            }
+          }
+          sentenceBuffer = ""; // 彻底清空
+        }
+        // isThinking.value = false;
+        // fullText = cleanTextForTTS(fullText);
+        // // 调用封装好的 TTS 接口
+        // await ttsService.streamTTS(fullText, (audioUrl) => {
+        //   audioQueue.push(audioUrl);
+        //   processAudioQueue(); // 触发播放
+        // });
       }
     );
   } catch (error) {
