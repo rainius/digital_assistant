@@ -163,240 +163,128 @@
 
 
 <script setup>
-import { ref, inject, onMounted, onUnmounted, nextTick } from 'vue';
-import { AvatarFactory } from '@/utils/avatar/AvatarFactory';
+import { ref, inject, onMounted, nextTick, watch } from 'vue';
 import { ServicesKey } from '@/services';
-import { cleanTextForTTS } from '@/utils/text/cleanTextForTTS';
-import { containsSentenceEnd } from '@/utils/text/sentenceSplitter';
+import { useAvatar } from '@/composables/useAvatar';
+import { useTTSQueue } from '@/composables/useTTSQueue';
+import { useChatStream } from '@/composables/useChatStream';
+import { useVoiceRecorder } from '@/composables/useVoiceRecorder';
+import { useDraggable } from '@/composables/useDraggable';
 
-// ================= 1. 核心服务初始化 =================
-// 从 main.js provide 的服务层获取实例
-const { asr: asrService, llm: difyService, tts: ttsService, avatarConfig } = inject(ServicesKey);
+// ================= 1. 核心服务 =================
+const { asr, llm, tts, avatarConfig } = inject(ServicesKey);
 
-// ================= 2. 状态变量 =================
-// UI 状态
-const isSidebarOpen = ref(false);
-const isOpen = ref(true);
+// ================= 2. UI 局部状态 =================
+const isSidebarOpen = ref(false);   // 左侧控制面板开合
+const isOpen = ref(true);           // 右侧 AI 面板开合
 const modelSize = ref(2.0);
 const eyeTracking = ref('follow');
 const selectedScene = ref('nova');
 
-// 聊天状态
-const isRecording = ref(false);
-const isRecognizing = ref(false);
-const isThinking = ref(false);
+// 侧边栏(左)的输入框 —— 目前与对话主流程是两套 UI,保持原状
+const chatInput = ref('');
+const chatResponse = ref('');
+const ttsInput = ref('');
+
+// AI 面板(右)的输入框
 const inputText = ref('');
-const messages = ref([{ role: 'ai', content: '您好！我是您的智能助手。<br>有什么我可以帮您的吗？' }]);
 const chatBodyRef = ref(null);
 const inputRef = ref(null);
 
-// 数字人模型与拖拽
-// const canvas = ref(null);
-// const live2dContainer = ref(null);
-const avatarContainer = ref(null); 
-const isDragging = ref(false);
-const dragStart = ref({ x: 0, y: 0 });
-const characterPosition = ref({ x: 0, y: 0 });
-// let model = null;
-// let app1 = null;
+// Avatar 容器 ref
+const avatarContainer = ref(null);
 
-let avatarInstance = null;
+// ================= 3. composable 装配 =================
+// Avatar 生命周期
+const { instance: avatarInstance, load: loadAvatar } = useAvatar(avatarContainer, {
+  type: avatarConfig.type,
+});
 
-// 音频队列
-const audioQueue = [];
-let isPlaying = false;
+// TTS 音频队列(依赖 avatar instance)
+const ttsQueue = useTTSQueue({ tts, avatar: avatarInstance });
 
-// ================= 3. 语音与对话逻辑调度 =================
+// 流式对话(依赖 llm,把句子转发给 TTS 队列)
+const chat = useChatStream({
+  llm,
+  onSentence: (sentence) => ttsQueue.enqueueText(sentence),
+});
+// 暴露给模板的 messages / isThinking
+const messages = chat.messages;
+const isThinking = chat.isThinking;
 
-// 切换录音
-const toggleVoiceRecording = async () => {
-  if (isRecognizing.value) return;
+// 语音录音(识别后自动发送)
+const recorder = useVoiceRecorder({
+  asr,
+  onText: (text) => {
+    inputText.value = text;
+    if (!isOpen.value) toggleAISidebar();
+    setTimeout(() => sendAIMessage(), 500); // 自动发送,保持原行为
+  },
+});
+const isRecording = recorder.isRecording;
+const isRecognizing = recorder.isRecognizing;
 
-  if (!isRecording.value) {
-    await asrService.start();
-    isRecording.value = true;
-  } else {
-    isRecording.value = false;
-    isRecognizing.value = true;
-    try {
-      const text = await asrService.stopAndRecognize();
-      if (text) {
-        inputText.value = text;
-        if (!isOpen.value) toggleAISidebar();
-        setTimeout(() => sendAIMessage(), 500); // 自动发送
-      }
-    } catch (e) {
-      console.error('语音识别失败:', e);
-      inputText.value = "[语音识别失败，请重试]";
-    } finally {
-      isRecognizing.value = false;
-    }
-  }
-};
+// 拖拽
+const dragger = useDraggable();
+const characterPosition = dragger.position;
+const isDragging = dragger.isDragging;
+const startDrag = dragger.onMouseDown;
 
-// 在组件顶部或者 setup 内部，定义一个“句子拼装厂”
-let sentenceBuffer = "";
-// 发送文字消息
-const sendAIMessage = async () => {
-  const text = inputText.value.trim();
-  if (!text) return;
-
-  messages.value.push({ role: 'user', content: text });
-  inputText.value = '';
-  isThinking.value = true;
-  await scrollToBottom();
-
-  const aiMsgIndex = messages.value.push({ role: 'ai', content: "" }) - 1;
-  
-  try {
-    // 每次发送新消息前，清空一次拼装厂
-    sentenceBuffer = "";
-    // 调用封装好的 LLM 流式接口
-    await difyService.streamChat(
-      text,
-      // onChunk 回调：打字机效果
-      (chunk) => {
-        // 1. 更新 UI：屏幕上的字照常打出来
-        messages.value[aiMsgIndex].content += chunk;
-        scrollToBottom();
-        // 2. 积攒到我们的拼接厂里
-        sentenceBuffer += chunk;
-        console.log("当前句子缓冲区：", sentenceBuffer);
-        // 3. 核心探测：如果这块 chunk 里包含了标点符号，说明一句完整的话结束了！
-        if (containsSentenceEnd(chunk)) {
-          // 清洗这句话（把标点换成适合 TTS 停顿的格式）
-          const sentenceToSpeak = cleanTextForTTS(sentenceBuffer);
-          if (sentenceToSpeak) {
-            // 【异步发射】：立刻把这句短话丢给 TTS，绝不阻塞 UI 接收下一个字！
-            // 注意：这里用我们之前重构的 fetchAudio (全量短句模式)
-            ttsService.fetchAudio(sentenceToSpeak).then((audioUrl) => {
-              if (audioUrl) {
-                audioQueue.push(audioUrl); // 塞进播放队列
-                processAudioQueue();       // 踢一脚播放引擎，让数字人开口
-              }
-            }).catch(err => console.error("TTS单句合成报错:", err));
-          }
-          // 4. 发送完后，立刻清空拼接厂，准备攒下一句话！
-          sentenceBuffer = "";
-        }
-      },
-      // onComplete 回调：思考完毕，开始语音合成
-      async () => {
-        isThinking.value = false;
-        
-        // 检查拼接厂里有没有“漏网之鱼”（比如最后一句话大模型没给句号）
-        if (sentenceBuffer.trim().length > 0) {
-          const finalSentence = cleanTextForTTS(sentenceBuffer);
-          if (finalSentence) {
-            try {
-              const audioUrl = await ttsService.fetchAudio(finalSentence);
-              if (audioUrl) {
-                audioQueue.push(audioUrl);
-                processAudioQueue();
-              }
-            } catch (err) {
-               console.error("最后一句TTS报错:", err);
-            }
-          }
-          sentenceBuffer = ""; // 彻底清空
-        }
-        // isThinking.value = false;
-        // fullText = cleanTextForTTS(fullText);
-        // // 调用封装好的 TTS 接口
-        // await ttsService.streamTTS(fullText, (audioUrl) => {
-        //   audioQueue.push(audioUrl);
-        //   processAudioQueue(); // 触发播放
-        // });
-      }
-    );
-  } catch (error) {
-    console.error('LLM API 错误:', error);
-    isThinking.value = false;
-  }
-};
-
-// ================= 4. Avatar 播放音频队列 =================
-const processAudioQueue = async () => {
-  
-  if (isPlaying || audioQueue.length === 0) return;
-
-  isPlaying = true;
-  const audioUrl = audioQueue.shift();
-  
-
-  try {
-    if (avatarInstance) {
-      // 大模型开始思考，切换思考表情
-  avatarInstance.setEmotion('thinking');
-  // 拿到音频后，让数字人说话
-  await avatarInstance.speak(audioUrl);
-  // 说完恢复平静
-  avatarInstance.setEmotion('neutral');
-    }
-    
-    // 可选：两句话之间增加极其短暂的缓冲衔接，让听感更自然
-    await new Promise(r => setTimeout(r, 50));
-    
-  } catch (error) {
-    console.error("音频播放被中断或出错:", error);
-  } finally {
-    // 【极其重要】播放完必须销毁对象 URL，否则前端内存会瞬间爆炸
-    URL.revokeObjectURL(audioUrl);
-    // 释放锁
-    isPlaying = false;
-    
-    // 递归调用自己，去检查队列里还有没有剩下没读完的句子
-    processAudioQueue();
-  }
-};
-
-// ================= 5. UI 杂项与 Live2D 挂载 =================
-const toggleSidebar = () => isSidebarOpen.value = !isSidebarOpen.value;
-const toggleAISidebar = () => {
-  isOpen.value = !isOpen.value;
-  if (isOpen.value) nextTick(() => { inputRef.value?.focus(); scrollToBottom(); });
-};
+// ================= 4. 事件处理(薄一层) =================
 const scrollToBottom = async () => {
   await nextTick();
   if (chatBodyRef.value) chatBodyRef.value.scrollTop = chatBodyRef.value.scrollHeight;
 };
 
-// 拖拽逻辑
-const startDrag = (e) => {
-  if (e.button !== 0) return;
-  isDragging.value = true;
-  dragStart.value = { x: e.clientX - characterPosition.value.x, y: e.clientY - characterPosition.value.y };
-  e.preventDefault();
+// 发送文字消息 —— 仅做"取值 + 清空输入框 + 调用 composable + 滚动"
+const sendAIMessage = async () => {
+  const text = inputText.value.trim();
+  if (!text) return;
+  inputText.value = '';
+  await chat.send(text);
 };
-// const onDrag = (e) => {
-//   if (!isDragging.value) return;
-//   e.preventDefault();
-//   const vp = document.querySelector('.model-viewport')?.getBoundingClientRect();
-//   const cw = document.querySelector('.character-wrapper')?.getBoundingClientRect();
-//   if (!vp || !cw) return;
-//   const maxX = vp.width / 2 - cw.width / 2;
-//   const maxY = vp.height / 2 - cw.height / 2;
-//   characterPosition.value = {
-//     x: Math.min(Math.max(e.clientX - dragStart.value.x, -maxX), maxX),
-//     y: Math.min(Math.max(e.clientY - dragStart.value.y, -maxY), maxY),
-//   };
-// };
-// const stopDrag = () => isDragging.value = false;
 
-onMounted(async () => {
-  avatarInstance = AvatarFactory.create(avatarConfig.type, {
-    modelPath: avatarConfig.modelPath
-  });
-  // 挂载到 DOM 上
-  await avatarInstance.mount(avatarContainer.value);
-});
+// 监听消息变化,自动滚动到底部
+watch(messages, () => { scrollToBottom(); }, { deep: true });
+watch(isThinking, () => { scrollToBottom(); });
 
-onUnmounted(() => {
-  if (avatarInstance) {
-    avatarInstance.destroy();
+// 录音切换
+const toggleVoiceRecording = () => recorder.toggle();
+
+// 侧边栏开合
+const toggleSidebar = () => { isSidebarOpen.value = !isSidebarOpen.value; };
+const toggleAISidebar = () => {
+  isOpen.value = !isOpen.value;
+  if (isOpen.value) {
+    nextTick(() => {
+      inputRef.value?.focus();
+      scrollToBottom();
+    });
   }
-  // window.removeEventListener('mousemove', onDrag);
-  // window.removeEventListener('mouseup', stopDrag);
+};
+
+// 侧边栏(左)的"发送消息" —— 与原行为一致,沿用 chatResponse 文本框
+const sendMessage = async () => {
+  const text = chatInput.value.trim();
+  if (!text) return;
+  chatResponse.value = '正在思考...';
+  // 走与主对话相同的链路
+  inputText.value = text;
+  chatInput.value = '';
+  await sendAIMessage();
+  // 主对话最后一条 AI 回复回填到侧边栏的只读框
+  const lastAi = [...messages.value].reverse().find((m) => m.role === 'ai');
+  chatResponse.value = lastAi ? lastAi.content.replace(/<br\s*\/?>(\s)?/gi, '\n') : '';
+};
+
+// 测试音频按钮 —— 占位,后续 PR-4 接线
+const handlePlayTestAudio = () => {
+  console.log('[DigitalAssistant] 测试音频按钮 (待接线)');
+};
+
+// ================= 5. 初始化 =================
+onMounted(async () => {
+  await loadAvatar(avatarConfig.modelPath);
 });
 </script>
 
