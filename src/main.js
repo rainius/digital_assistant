@@ -1,5 +1,7 @@
 import { createApp } from 'vue'
 import App from './App.vue'
+// 引入设计 token (全局 CSS 变量)
+import '@/styles/tokens.css';
 // 引入 Element Plus
 import ElementPlus from 'element-plus';
 import 'element-plus/dist/index.css';

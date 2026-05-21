@@ -1,0 +1,28 @@
+/**
+ * 设计 Token —— 全局 CSS 变量
+ *
+ * 这些变量原本散落在 DigitalAssistant.vue 与 AISiderBar.vue 的 scoped 样式中,
+ * 现在统一提到 :root,所有子组件共享,改一处生效。
+ */
+
+:root {
+  /* 主色与渐变 */
+  --primary-gradient: linear-gradient(135deg, #4f46e5 0%, #8b5cf6 100%);
+
+  /* 玻璃拟态 */
+  --glass-bg: rgba(255, 255, 255, 0.75);
+
+  /* 文字颜色 */
+  --text-main: #1e293b;
+  --text-secondary: #64748b;
+
+  /* 气泡背景 */
+  --ai-bubble-bg: #f1f5f9;
+  --user-text: #ffffff;
+
+  /* 阴影 */
+  --shadow-float: 0 10px 40px -10px rgba(0, 0, 0, 0.15);
+
+  /* 面板宽度 */
+  --panel-width: 400px;
+}
