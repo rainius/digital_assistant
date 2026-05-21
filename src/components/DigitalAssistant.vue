@@ -163,35 +163,15 @@
 
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from 'vue';
-// import { ASRAdapter } from '../utils/asrAdapter';
-import { ASRFactory } from '../utils/asr/ASRFactory';
-import { LLMFactory } from '../utils/llm/LLMFactory';
-import { TTSFactory } from '../utils/tts/TTSFactory';
-import { AvatarFactory } from '../utils/avatar/AvatarFactory';
+import { ref, inject, onMounted, onUnmounted, nextTick } from 'vue';
+import { AvatarFactory } from '@/utils/avatar/AvatarFactory';
+import { ServicesKey } from '@/services';
+import { cleanTextForTTS } from '@/utils/text/cleanTextForTTS';
+import { containsSentenceEnd } from '@/utils/text/sentenceSplitter';
 
 // ================= 1. 核心服务初始化 =================
-// 【耳朵】语音识别
-const asrService = ASRFactory.create('sensevoice', {
-  apiUrl: '/api/asr', // 你的 SenseVoice 地址
-  lang: 'auto'
-});
-// 【嘴巴】语音合成（Sherpa 或 Edge）
-// const ttsService = TTSFactory.create('sherpa', { 
-//   apiUrl: 'http://localhost:5001/api/local-tts', 
-// });
-const ttsService = TTSFactory.create('gpt-sovits', { 
-  apiUrl: '/api/tts', 
-  refAudio: 'examples/dbes01.wav',
-  promptText: '欢迎来到南京大报恩寺遗址景区！这里曾是明代皇家寺院，其核心大报恩寺琉璃宝塔被誉为中世纪世界七大奇迹之一。'
-});
-
-// 【大脑】大模型（Dify 或 Coze）
-const difyService = LLMFactory.create('dify', {
-  apiUrl: 'http://192.168.1.168/v1/chat-messages',
-  apiKey: 'app-SzWFJDVQBdNbNP0DrPmu98df',
-  userId: 'digitalhuman-001'
-});
+// 从 main.js provide 的服务层获取实例
+const { asr: asrService, llm: difyService, tts: ttsService, avatarConfig } = inject(ServicesKey);
 
 // ================= 2. 状态变量 =================
 // UI 状态
@@ -283,7 +263,7 @@ const sendAIMessage = async () => {
         sentenceBuffer += chunk;
         console.log("当前句子缓冲区：", sentenceBuffer);
         // 3. 核心探测：如果这块 chunk 里包含了标点符号，说明一句完整的话结束了！
-        if (/[，。！？；、,.!?]/.test(chunk)) {
+        if (containsSentenceEnd(chunk)) {
           // 清洗这句话（把标点换成适合 TTS 停顿的格式）
           const sentenceToSpeak = cleanTextForTTS(sentenceBuffer);
           if (sentenceToSpeak) {
@@ -333,29 +313,6 @@ const sendAIMessage = async () => {
     console.error('LLM API 错误:', error);
     isThinking.value = false;
   }
-};
-
-const cleanTextForTTS = (rawText) => {
-  return rawText
-    // 1. 剔除 Markdown 特殊符号：# * ` > - ~
-    .replace(/[#*`>~-]/g, '')
-    
-    // 2. 将多余的换行符先替换为中文逗号
-    .replace(/\n+/g, '，')
-    
-    // 3. 去除可能残留的 URL 链接
-    .replace(/https?:\/\/[^\s]+/g, '')
-    
-    // 4. 【新增方案一核心】将中文标点替换为“英文标点 + 空格”，强制触发 espeak-ng 的呼吸停顿
-    .replace(/，/g, ', ')  // 刚才换行符变的中文逗号，也会在这里被一起处理
-    .replace(/。/g, '. ')
-    .replace(/！/g, '! ')
-    .replace(/？/g, '? ')
-    .replace(/、/g, ', ')  // 把顿号也当成逗号来停顿
-    
-    // 5. 清理多余的空格（注意：\s+ 只会把多个连续空格变成一个，不会吃掉我们在上一步故意加的单个空格）
-    .replace(/\s+/g, ' ')
-    .trim();
 };
 
 // ================= 4. Avatar 播放音频队列 =================
@@ -427,8 +384,8 @@ const startDrag = (e) => {
 // const stopDrag = () => isDragging.value = false;
 
 onMounted(async () => {
-  avatarInstance = AvatarFactory.create('live2d', {
-    modelPath: "./models/芍药/芍药身体运动.model3.json"
+  avatarInstance = AvatarFactory.create(avatarConfig.type, {
+    modelPath: avatarConfig.modelPath
   });
   // 挂载到 DOM 上
   await avatarInstance.mount(avatarContainer.value);
