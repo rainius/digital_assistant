@@ -32,6 +32,7 @@
       <div class="subtitle"> </div>
 
       <VoiceButton
+        v-if="showVoiceButton"
         :is-recording="isRecording"
         :is-recognizing="isRecognizing"
         @click="$emit('toggle-record')"
@@ -49,6 +50,7 @@ defineProps({
   isDragging: { type: Boolean, default: false },
   isRecording: { type: Boolean, default: false },
   isRecognizing: { type: Boolean, default: false },
+  showVoiceButton: { type: Boolean, default: true },
 });
 
 defineEmits(['update:modelSize', 'mousedown', 'toggle-record']);

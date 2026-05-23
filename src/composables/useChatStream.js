@@ -26,7 +26,7 @@ export function useChatStream({ llm, onSentence, initialMessages = [] }) {
   const messages = ref(
     initialMessages.length > 0
       ? initialMessages
-      : [{ role: 'ai', content: '您好！我是您的智能助手。<br>有什么我可以帮您的吗？' }]
+      : [{ role: 'ai', content: '您好！我是您的**智能学习助手**，我可以作为数字人，和你进行语音对话，也可以和你进行文字交谈。\n\n我可以帮您：\n\n- 解答课程**疑难问题**\n- 提供学习资源推荐\n- 辅助完成编程练习\n\n以下是 Python 示例：\n\n```python\ndef greet(name):\n    return f"你好，{name}！"\n```\n\n> 学习如逆水行舟，不进则退。\n\n有什么我可以帮您的吗？' }]
   );
   const isThinking = ref(false);
 
@@ -124,7 +124,7 @@ export function useChatStream({ llm, onSentence, initialMessages = [] }) {
     currentGen.value++; // 递增世代号,丢弃所有进行中的流
     messages.value = initialMessages.length > 0
       ? [...initialMessages]
-      : [{ role: 'ai', content: '您好！我是您的智能助手。<br>有什么我可以帮您的吗？' }];
+      : [{ role: 'ai', content: '您好！我是您的**智能学习助手**。\n\n我可以帮您：\n\n- 解答课程**疑难问题**\n- 提供学习资源推荐\n- 辅助完成编程练习\n\n以下是 Python 示例：\n\n```python\ndef greet(name):\n    return f"你好，{name}！"\n```\n\n> 学习如逆水行舟，不进则退。\n\n有什么我可以帮您的吗？' }];
     isThinking.value = false;
     sentenceBuffer = '';
 

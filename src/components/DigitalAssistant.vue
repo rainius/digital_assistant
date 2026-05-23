@@ -16,6 +16,7 @@
         :is-dragging="isDragging"
         :is-recording="isRecording"
         :is-recognizing="isRecognizing"
+        :show-voice-button="false"
         @mousedown="startDrag"
         @toggle-record="toggleVoiceRecording"
       >
@@ -31,9 +32,14 @@
       <!-- 右侧 AI 对话面板 -->
       <AIChatPanel
         v-model:inputText="inputText"
+        v-model:chatMode="chatMode"
         :messages="messages"
         :is-thinking="isThinking"
         @send="handleAISend"
+        @toggle-mic="toggleVoiceRecording"
+        @add-file="onAddFile"
+        @add-image="onAddImage"
+        @add-code="onAddCode"
       />
     </div>
   </div>
@@ -58,6 +64,7 @@ const { asr, llm, tts, avatarConfig } = inject(ServicesKey);
 
 // ================= 2. UI 局部状态 =================
 const modelSize = ref(2.0);
+const chatMode = ref('digital-human');
 
 // 右侧 AI 面板的输入
 const inputText = ref('');
@@ -107,6 +114,11 @@ const toggleVoiceRecording = () => recorder.toggle();
 const handleAISend = async (text) => {
   await chat.send(text);
 };
+
+// 添加菜单项（后续接线）
+const onAddFile = () => console.log('[DigitalAssistant] 添加文件');
+const onAddImage = () => console.log('[DigitalAssistant] 添加图片');
+const onAddCode = () => console.log('[DigitalAssistant] 添加代码');
 
 // ================= 4. 初始化 =================
 onMounted(async () => {
