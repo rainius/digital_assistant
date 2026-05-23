@@ -116,11 +116,9 @@ const courses = [
 }
 
 .section-title {
-  font-size: 0.8rem;
+  font-size: 0.95rem;
   font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  color: var(--text-main);
   margin-bottom: 14px;
   padding-left: 4px;
 }
