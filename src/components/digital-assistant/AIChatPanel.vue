@@ -25,6 +25,9 @@
       </div>
     </div>
 
+    <!-- 录音波形 -->
+    <WaveformView :active="isRecording" />
+
     <!-- 底部输入区 -->
     <div class="ai-input-wrapper">
       <div class="input-card" :class="{ disabled: disableInput }">
@@ -79,7 +82,11 @@
 
           <div class="toolbar-right">
             <!-- 麦克风 -->
-            <button class="tool-btn mic-btn" title="语音输入" @click="$emit('toggle-mic')">
+            <button
+              :class="['tool-btn', 'mic-btn', { recording: isRecording }]"
+              :title="isRecording ? '点击停止录音' : '语音输入'"
+              @click="$emit('toggle-mic')"
+            >
               <svg viewBox="0 0 24 24" width="18" height="18">
                 <path d="M12,2A3,3 0 0,1 15,5V11A3,3 0 0,1 12,14A3,3 0 0,1 9,11V5A3,3 0 0,1 12,2M19,11C19,14.53 16.39,17.44 13,17.93V21H11V17.93C7.61,17.44 5,14.53 5,11H7A5,5 0 0,0 12,16A5,5 0 0,0 17,11H19Z" />
               </svg>
@@ -91,8 +98,10 @@
               title="发送"
               @click="handleSend"
             >
-              <svg viewBox="0 0 24 24" width="18" height="18">
-                <path d="M2,21L23,12L2,3V10L17,12L2,14V21Z" />
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="19" x2="12" y2="5" />
+                <line x1="5" y1="12" x2="12" y2="5" />
+                <line x1="19" y1="12" x2="12" y2="5" />
               </svg>
             </button>
           </div>
@@ -105,6 +114,7 @@
 <script setup>
 import { ref, computed, nextTick, watch, onMounted, onBeforeUnmount } from 'vue';
 import { marked } from 'marked';
+import WaveformView from './WaveformView.vue';
 
 const props = defineProps({
   /** 消息列表 [{ role: 'ai' | 'user', content: string }] */
@@ -117,6 +127,8 @@ const props = defineProps({
   placeholder: { type: String, default: '输入您的问题...' },
   /** 对话模式 digital-human | text-only, 支持 v-model:chatMode */
   chatMode: { type: String, default: 'digital-human' },
+  /** 是否正在录音 */
+  isRecording: { type: Boolean, default: false },
   /** 是否显示"新会话"按钮 */
   showReset: { type: Boolean, default: false },
   /** 思考中是否禁用输入(默认 true) */
@@ -413,7 +425,7 @@ defineExpose({ focus, scrollToBottom });
 .toolbar-right {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 10px;
 }
 
 /* 通用工具按钮 */
@@ -511,23 +523,44 @@ defineExpose({ focus, scrollToBottom });
   border-color: #8b5cf6;
 }
 
-/* 发送按钮 */
-.send-btn {
+/* 麦克风按钮 */
+.tool-btn.mic-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+}
+
+.tool-btn.mic-btn.recording {
+  background: #fef2f2;
+  color: #ef4444;
+  animation: micPulse 1.5s ease-in-out infinite;
+}
+
+.tool-btn.mic-btn.recording:hover {
+  background: #fef2f2;
+}
+
+@keyframes micPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.3); }
+  50%      { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+}
+
+/* 发送按钮 —— 提高优先级覆盖 .tool-btn 默认背景 */
+.tool-btn.send-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
   background: var(--primary-gradient);
   color: #fff;
 }
 
-.send-btn svg {
-  fill: #fff;
+.tool-btn.send-btn:hover:not(:disabled) {
+  background: var(--primary-gradient);
+  opacity: 0.85;
 }
 
-.send-btn:hover:not(:disabled) {
-  transform: scale(1.05);
-  color: #fff;
-}
-
-.send-btn:disabled {
-  opacity: 0.4;
+.tool-btn.send-btn:disabled {
+  opacity: 0.3;
   cursor: not-allowed;
 }
 

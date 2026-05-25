@@ -35,6 +35,7 @@
         v-model:chatMode="chatMode"
         :messages="messages"
         :is-thinking="isThinking"
+        :is-recording="isRecording"
         @send="handleAISend"
         @toggle-mic="toggleVoiceRecording"
         @add-file="onAddFile"
