@@ -51,6 +51,7 @@ export function createServices() {
   const avatarConfig = {
     type: ENV.AVATAR_TYPE,
     modelPath: ENV.AVATAR_MODEL,
+    livetalkingUrl: ENV.LIVETALKING_URL,
   };
 
   return { asr, llm, tts, avatarConfig };

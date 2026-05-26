@@ -11,7 +11,9 @@
 
       <!-- 中间数字人舞台 -->
       <AvatarStage
+        ref="avatarStageRef"
         v-model:modelSize="modelSize"
+        v-model:avatarType="avatarType"
         :character-position="characterPosition"
         :is-dragging="isDragging"
         :is-recording="isRecording"
@@ -48,7 +50,7 @@
 
 
 <script setup>
-import { ref, inject, onMounted } from 'vue';
+import { ref, inject, onMounted, watch } from 'vue';
 import { ServicesKey } from '@/services';
 import { useAvatar } from '@/composables/useAvatar';
 import { useTTSQueue } from '@/composables/useTTSQueue';
@@ -75,8 +77,19 @@ const avatarContainer = ref(null);
 
 // ================= 3. composable 装配 =================
 // Avatar 生命周期
-const { instance: avatarInstance, load: loadAvatar } = useAvatar(avatarContainer, {
+const { instance: avatarInstance, load: loadAvatar, avatarType } = useAvatar(avatarContainer, {
   type: avatarConfig.type,
+});
+
+// 类型 → 模型路径映射
+const avatarModelMap = {
+  live2d: avatarConfig.modelPath,
+  livetalking: avatarConfig.livetalkingUrl,
+};
+
+// 切换数字人类型时重新加载
+watch(avatarType, async (newType) => {
+  await loadAvatar(avatarModelMap[newType] || avatarConfig.modelPath);
 });
 
 // TTS 音频队列(依赖 avatar instance)
@@ -86,6 +99,7 @@ const ttsQueue = useTTSQueue({ tts, avatar: avatarInstance });
 const chat = useChatStream({
   llm,
   onSentence: (sentence) => ttsQueue.enqueueText(sentence),
+  onParagraph: (paragraph) => ttsQueue.enqueueParagraph(paragraph),
 });
 const messages = chat.messages;
 const isThinking = chat.isThinking;
@@ -102,7 +116,26 @@ const isRecording = recorder.isRecording;
 const isRecognizing = recorder.isRecognizing;
 
 // 拖拽
-const dragger = useDraggable();
+const avatarStageRef = ref(null);
+
+const dragger = useDraggable({
+  bounds: () => {
+    const viewport = avatarStageRef.value?.modelViewportRef;
+    const wrapper = avatarStageRef.value?.characterWrapperRef;
+    if (!viewport || !wrapper) return null;
+
+    const vpWidth = viewport.clientWidth;
+    const vpHeight = viewport.clientHeight;
+    const scale = modelSize.value / 2;
+    const scaledW = wrapper.offsetWidth * scale;
+    const scaledH = wrapper.offsetHeight * scale;
+
+    const maxX = Math.max(0, (vpWidth - scaledW) / 2);
+    const maxY = Math.max(0, (vpHeight - scaledH) / 2);
+
+    return { minX: -maxX, maxX, minY: -maxY, maxY };
+  },
+});
 const characterPosition = dragger.position;
 const isDragging = dragger.isDragging;
 const startDrag = dragger.onMouseDown;
@@ -123,7 +156,7 @@ const onAddCode = () => console.log('[DigitalAssistant] 添加代码');
 
 // ================= 4. 初始化 =================
 onMounted(async () => {
-  await loadAvatar(avatarConfig.modelPath);
+  await loadAvatar(avatarModelMap[avatarType.value] || avatarConfig.modelPath);
 });
 </script>
 

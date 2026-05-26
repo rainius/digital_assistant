@@ -3,6 +3,8 @@
  * 封装 PIXI 和 pixi-live2d-display 的底层逻辑
  */
 export class Live2DAdapter {
+  needsTTS = true;  // Live2D 需要外部 TTS 提供音频才能驱动口型
+  streamMode = 'sentence'; // 一句话合一次音频驱动口型，越早越好
   constructor(config) {
     this.modelPath = config.modelPath;
     this.app = null;
@@ -52,7 +54,7 @@ export class Live2DAdapter {
   }
 
   // 2. 说话与嘴型同步
-  async speak(audioUrl) {
+  async speak(audioUrl /* , text */) {
     if (!this.model) return;
     return new Promise((resolve) => {
       // 调用 Live2D 内置的音频唇形同步方法

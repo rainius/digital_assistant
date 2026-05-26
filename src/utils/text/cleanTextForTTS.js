@@ -34,3 +34,29 @@ export function cleanTextForTTS(rawText) {
     .replace(/\s+/g, ' ')
     .trim();
 }
+
+/**
+ * 段模式（如 LiveTalking）专用的轻量清洗。
+ *
+ * 服务端有自己的中文分句和 TTS 节奏，所以不要把中文标点替换成英文，
+ * 也不要把换行强行改成逗号 —— 让原始标点交给服务端处理。
+ * 只去掉会让 TTS 念出来的 Markdown 符号、URL，并收敛空白。
+ *
+ * @param {string} rawText - LLM 原始整段输出
+ * @returns {string} 保留中文标点、适合段模式投递的纯文本
+ */
+export function cleanTextForParagraphTTS(rawText) {
+  if (!rawText) return '';
+  return rawText
+    // 去 Markdown 装饰符（保留破折号 - 担心数字范围"3-5"被吃，所以也去掉，与句模式保持一致）
+    .replace(/[#*`>~]/g, '')
+    // 列表项前导符 "- " / "* "
+    .replace(/^[\s]*[-*]\s+/gm, '')
+    // URL
+    .replace(/https?:\/\/\S+/g, '')
+    // 多余换行收敛成单个换行（保留段落感即可）
+    .replace(/\n{2,}/g, '\n')
+    // 收敛行内多余空白
+    .replace(/[ \t]+/g, ' ')
+    .trim();
+}

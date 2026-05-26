@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>LiveTalking WebRTC 测试</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: ui-monospace, monospace; padding: 24px; background: #f5f7fa; }
+    h1 { font-size: 18px; margin-bottom: 16px; }
+    .row { display: flex; gap: 16px; margin-bottom: 16px; }
+    .row label { font-weight: 600; white-space: nowrap; line-height: 36px; }
+    .row input, .row select { flex: 1; height: 36px; padding: 0 8px; border: 1px solid #d1d5db; border-radius: 6px; font-family: inherit; }
+    button { height: 36px; padding: 0 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-family: inherit; }
+    .btn-connect { background: #7c3aed; color: #fff; }
+    .btn-connect:hover { background: #6d28d9; }
+    .btn-stop { background: #dc2626; color: #fff; }
+    .btn-stop:hover { background: #b91c1c; }
+    .btn-speak { background: #059669; color: #fff; }
+    .btn-speak:hover { background: #047857; }
+    video { width: 640px; max-width: 100%; border-radius: 8px; background: #000; margin: 16px 0; }
+    pre { background: #1e1b4b; color: #e2e8f0; padding: 12px; border-radius: 8px; overflow-x: auto; font-size: 12px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+    .section { margin-bottom: 16px; }
+    .section h2 { font-size: 14px; margin-bottom: 8px; color: #374151; }
+    .info { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+    .info-ok { background: #d1fae5; color: #065f46; }
+    .info-err { background: #fee2e2; color: #991b1b; }
+  </style>
+</head>
+<body>
+  <h1>LiveTalking WebRTC 连接测试</h1>
+
+  <div class="row">
+    <label>服务地址:</label>
+    <input id="baseUrl" value="http://localhost:8010" placeholder="http://host:port">
+    <button class="btn-connect" onclick="connect()">连接</button>
+    <button class="btn-stop" onclick="disconnect()">断开</button>
+  </div>
+
+  <div class="row">
+    <label>测试文本:</label>
+    <input id="speakText" value="你好，我是数字人助手" placeholder="输入要播报的文本">
+    <button class="btn-speak" onclick="speak()">发送播报</button>
+  </div>
+
+  <p>状态: <span id="status" class="info">未连接</span></p>
+
+  <video id="video" autoplay playsinline muted style="display:none"></video>
+
+  <div class="section">
+    <h2>客户端 SDP Offer (发送到 /offer)</h2>
+    <pre id="offerSdp">等待连接...</pre>
+  </div>
+
+  <div class="section">
+    <h2>服务端 Answer (来自 /offer)</h2>
+    <pre id="answerSdp">等待连接...</pre>
+  </div>
+
+  <div class="section">
+    <h2>日志</h2>
+    <pre id="log"></pre>
+  </div>
+
+<script>
+let pc = null;
+let sessionId = null;
+const log = document.getElementById('log');
+const status = document.getElementById('status');
+
+function setStatus(text, ok) {
+  status.textContent = text;
+  status.className = 'info ' + (ok ? 'info-ok' : 'info-err');
+}
+
+function appendLog(msg) {
+  log.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
+  log.scrollTop = log.scrollHeight;
+}
+
+function getBaseUrl() {
+  let url = document.getElementById('baseUrl').value.trim();
+  // 自动处理 ws:// → http://
+  url = url.replace(/^ws:\/\//, 'http://');
+  url = url.replace(/\/$/, '');
+  return url;
+}
+
+async function connect() {
+  const baseUrl = getBaseUrl();
+  appendLog(`连接目标: ${baseUrl}/offer`);
+
+  try {
+    pc = new RTCPeerConnection();
+
+    // 添加接收视频的 transceiver
+    pc.addTransceiver('video', { direction: 'recvonly' });
+
+    pc.ontrack = (event) => {
+      if (event.track.kind === 'video') {
+        appendLog('ontrack 触发, 设置视频流');
+        const video = document.getElementById('video');
+        video.srcObject = event.streams[0];
+        video.style.display = 'block';
+      }
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      appendLog('ICE 状态: ' + pc.iceConnectionState);
+    };
+
+    // 创建 SDP offer
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    const sdp = pc.localDescription.sdp;
+    document.getElementById('offerSdp').textContent = sdp;
+    appendLog('SDP offer 已创建, m-line 数量: ' + (sdp.match(/^m=/gm) || []).length);
+
+    // 发送到服务端
+    appendLog('POST /offer ...');
+    const resp = await fetch(`${baseUrl}/offer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sdp: sdp, type: 'offer' }),
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      throw new Error(`/offer 返回 ${resp.status}: ${errText.slice(0, 200)}`);
+    }
+
+    const answer = await resp.json();
+    sessionId = answer.sessionid;
+    appendLog('sessionid: ' + sessionId);
+
+    document.getElementById('answerSdp').textContent = JSON.stringify(answer, null, 2);
+
+    await pc.setRemoteDescription(
+      new RTCSessionDescription({ sdp: answer.sdp, type: 'answer' })
+    );
+
+    setStatus('已连接 (session: ' + sessionId + ')', true);
+    appendLog('WebRTC 连接建立成功');
+  } catch (err) {
+    appendLog('错误: ' + err.message);
+    setStatus('连接失败', false);
+  }
+}
+
+async function speak() {
+  if (!sessionId) {
+    appendLog('请先连接');
+    return;
+  }
+  const baseUrl = getBaseUrl();
+  const text = document.getElementById('speakText').value.trim();
+  if (!text) return;
+
+  try {
+    appendLog('POST /human text=' + text.slice(0, 30));
+    const resp = await fetch(`${baseUrl}/human`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, type: 'echo', sessionid: sessionId }),
+    });
+    if (!resp.ok) {
+      appendLog('/human 返回 ' + resp.status);
+    } else {
+      appendLog('播报已发送');
+    }
+  } catch (err) {
+    appendLog('播报错误: ' + err.message);
+  }
+}
+
+function disconnect() {
+  if (pc) {
+    pc.close();
+    pc = null;
+  }
+  sessionId = null;
+  const video = document.getElementById('video');
+  video.srcObject = null;
+  video.style.display = 'none';
+  document.getElementById('offerSdp').textContent = '等待连接...';
+  document.getElementById('answerSdp').textContent = '等待连接...';
+  setStatus('未连接');
+  appendLog('已断开');
+}
+</script>
+</body>
+</html>

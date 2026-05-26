@@ -1,0 +1,174 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 950" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, monospace" font-size="11">
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#5b21b6"/>
+    </marker>
+    <marker id="arrow-return" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto">
+      <path d="M8,0 L0,3 L8,6 Z" fill="#0891b2"/>
+    </marker>
+    <linearGradient id="header" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#faf5ff"/>
+      <stop offset="100%" stop-color="#f3e8ff"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 背景 -->
+  <rect width="1100" height="950" fill="#ffffff" rx="8"/>
+
+  <!-- 标题 -->
+  <text x="550" y="28" text-anchor="middle" font-size="14" font-weight="bold" fill="#1e1b4b">数字人类型切换 · 时序图</text>
+  <text x="550" y="46" text-anchor="middle" font-size="10" fill="#6b7280">Live2D → LiveTalking</text>
+
+  <!-- 参与者头部 -->
+  <!-- User -->
+  <rect x="18" y="62" width="72" height="34" rx="6" fill="url(#header)" stroke="#c4b5fd" stroke-width="1.2"/>
+  <text x="54" y="83" text-anchor="middle" font-size="10" font-weight="bold" fill="#5b21b6">用户</text>
+
+  <!-- AvatarStage -->
+  <rect x="125" y="62" width="90" height="34" rx="6" fill="url(#header)" stroke="#c4b5fd" stroke-width="1.2"/>
+  <text x="170" y="83" text-anchor="middle" font-size="9" font-weight="bold" fill="#5b21b6">AvatarStage</text>
+
+  <!-- DigitalAssistant -->
+  <rect x="250" y="62" width="98" height="34" rx="6" fill="url(#header)" stroke="#c4b5fd" stroke-width="1.2"/>
+  <text x="299" y="83" text-anchor="middle" font-size="9" font-weight="bold" fill="#5b21b6">DigitalAssistant</text>
+
+  <!-- useAvatar -->
+  <rect x="383" y="62" width="82" height="34" rx="6" fill="url(#header)" stroke="#c4b5fd" stroke-width="1.2"/>
+  <text x="424" y="83" text-anchor="middle" font-size="9" font-weight="bold" fill="#5b21b6">useAvatar</text>
+
+  <!-- AvatarFactory -->
+  <rect x="500" y="62" width="92" height="34" rx="6" fill="url(#header)" stroke="#c4b5fd" stroke-width="1.2"/>
+  <text x="546" y="83" text-anchor="middle" font-size="9" font-weight="bold" fill="#5b21b6">AvatarFactory</text>
+
+  <!-- Live2DAdapter -->
+  <rect x="627" y="62" width="96" height="34" rx="6" fill="url(#header)" stroke="#c4b5fd" stroke-width="1.2"/>
+  <text x="675" y="83" text-anchor="middle" font-size="9" font-weight="bold" fill="#5b21b6">Live2DAdapter</text>
+
+  <!-- LiveTalkingAdapter -->
+  <rect x="758" y="62" width="114" height="34" rx="6" fill="url(#header)" stroke="#c4b5fd" stroke-width="1.2"/>
+  <text x="815" y="83" text-anchor="middle" font-size="9" font-weight="bold" fill="#5b21b6">LiveTalkingAdapter</text>
+
+  <!-- 服务端 -->
+  <rect x="907" y="62" width="100" height="34" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.2"/>
+  <text x="957" y="83" text-anchor="middle" font-size="9" font-weight="bold" fill="#92400e">LiveTalking服务</text>
+
+  <!-- 生命线 -->
+  <line x1="54" y1="96" x2="54" y2="920" stroke="#c4b5fd" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>
+  <line x1="170" y1="96" x2="170" y2="920" stroke="#c4b5fd" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>
+  <line x1="299" y1="96" x2="299" y2="920" stroke="#c4b5fd" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>
+  <line x1="424" y1="96" x2="424" y2="920" stroke="#c4b5fd" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>
+  <line x1="546" y1="96" x2="546" y2="920" stroke="#c4b5fd" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>
+  <line x1="675" y1="96" x2="675" y2="920" stroke="#c4b5fd" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>
+  <line x1="815" y1="96" x2="815" y2="920" stroke="#c4b5fd" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>
+  <line x1="957" y1="96" x2="957" y2="920" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>
+
+  <!-- === 步骤 1: 用户选择 === -->
+  <rect x="30" y="106" width="184" height="18" rx="4" fill="#ede9fe"/>
+  <text x="122" y="119" text-anchor="middle" font-size="9" fill="#5b21b6" font-weight="bold">① 用户选择 "真人分身"</text>
+  <line x1="54" y1="128" x2="168" y2="128" stroke="#7c3aed" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <!-- === 步骤 2: emit === -->
+  <rect x="131" y="142" width="230" height="18" rx="4" fill="#ede9fe"/>
+  <text x="246" y="155" text-anchor="middle" font-size="9" fill="#5b21b6">② emit('update:avatarType', 'livetalking')</text>
+  <line x1="170" y1="164" x2="297" y2="164" stroke="#7c3aed" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <!-- === 步骤 3: v-model === -->
+  <rect x="256" y="178" width="220" height="18" rx="4" fill="#dbeafe"/>
+  <text x="366" y="191" text-anchor="middle" font-size="9" fill="#1d4ed8">③ v-model 同步: avatarType='livetalking'</text>
+
+  <!-- === 步骤 4: watch === -->
+  <rect x="256" y="212" width="220" height="18" rx="4" fill="#ede9fe"/>
+  <text x="366" y="225" text-anchor="middle" font-size="9" fill="#5b21b6">④ watch(avatarType) 触发回调</text>
+
+  <!-- === 步骤 5: loadAvatar === -->
+  <rect x="345" y="248" width="260" height="18" rx="4" fill="#ede9fe"/>
+  <text x="475" y="261" text-anchor="middle" font-size="9" fill="#5b21b6">⑤ loadAvatar(avatarModelMap['livetalking'])</text>
+  <line x1="299" y1="270" x2="422" y2="270" stroke="#7c3aed" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <text x="360" y="286" font-size="8" fill="#6b7280">→ avatarConfig.livetalkingUrl</text>
+
+  <!-- === 步骤 6: destroy === -->
+  <rect x="380" y="304" width="190" height="18" rx="4" fill="#fef2f2"/>
+  <text x="475" y="317" text-anchor="middle" font-size="9" fill="#dc2626">⑥ instance.destroy() 销毁旧实例</text>
+  <line x1="424" y1="326" x2="673" y2="326" stroke="#dc2626" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <rect x="583" y="340" width="200" height="18" rx="4" fill="#fef2f2"/>
+  <text x="683" y="353" text-anchor="middle" font-size="9" fill="#dc2626">Live2DAdapter.destroy()</text>
+  <text x="683" y="370" font-size="8" fill="#9ca3af" text-anchor="middle">清理 PIXI app / canvas</text>
+
+  <line x1="673" y1="378" x2="422" y2="378" stroke="#0891b2" stroke-width="1" marker-end="url(#arrow-return)" stroke-dasharray="3,2"/>
+
+  <!-- === 步骤 7: create === -->
+  <rect x="345" y="396" width="310" height="18" rx="4" fill="#ede9fe"/>
+  <text x="500" y="409" text-anchor="middle" font-size="9" fill="#5b21b6">⑦ AvatarFactory.create('livetalking', { modelPath })</text>
+  <line x1="424" y1="418" x2="544" y2="418" stroke="#7c3aed" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <rect x="500" y="432" width="190" height="18" rx="4" fill="#ede9fe"/>
+  <text x="595" y="445" text-anchor="middle" font-size="9" fill="#5b21b6">⑧ new LiveTalkingAdapter(config)</text>
+  <line x1="546" y1="454" x2="813" y2="454" stroke="#7c3aed" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <text x="680" y="470" font-size="8" fill="#6b7280">this.baseUrl = config.modelPath</text>
+
+  <line x1="813" y1="482" x2="544" y2="482" stroke="#0891b2" stroke-width="1" marker-end="url(#arrow-return)" stroke-dasharray="3,2"/>
+  <line x1="544" y1="494" x2="422" y2="494" stroke="#0891b2" stroke-width="1" marker-end="url(#arrow-return)" stroke-dasharray="3,2"/>
+
+  <!-- === 步骤 9: mount === -->
+  <rect x="345" y="510" width="230" height="18" rx="4" fill="#ede9fe"/>
+  <text x="460" y="523" text-anchor="middle" font-size="9" fill="#5b21b6">⑨ instance.mount(container)</text>
+  <line x1="424" y1="532" x2="813" y2="532" stroke="#7c3aed" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <!-- mount 子步骤 -->
+  <rect x="720" y="546" width="170" height="18" rx="4" fill="#ecfdf5"/>
+  <text x="805" y="559" text-anchor="middle" font-size="8" fill="#059669">创建 &lt;video&gt; 元素</text>
+
+  <!-- _connectWebRTC -->
+  <rect x="720" y="574" width="200" height="18" rx="4" fill="#ecfdf5"/>
+  <text x="820" y="587" text-anchor="middle" font-size="8" fill="#059669">_connectWebRTC()</text>
+
+  <!-- RTCPeerConnection -->
+  <rect x="758" y="602" width="180" height="18" rx="4" fill="#f0fdf4"/>
+  <text x="848" y="615" text-anchor="middle" font-size="8" fill="#166534">new RTCPeerConnection()</text>
+
+  <!-- addTransceiver -->
+  <rect x="758" y="630" width="210" height="18" rx="4" fill="#f0fdf4"/>
+  <text x="863" y="643" text-anchor="middle" font-size="8" fill="#166534">addTransceiver('video', 'recvonly')</text>
+
+  <!-- createOffer + setLocal -->
+  <rect x="758" y="658" width="260" height="18" rx="4" fill="#f0fdf4"/>
+  <text x="888" y="671" text-anchor="middle" font-size="8" fill="#166534">createOffer() → setLocalDescription(offer)</text>
+
+  <!-- POST /offer -->
+  <rect x="758" y="686" width="270" height="18" rx="4" fill="#eff6ff"/>
+  <text x="893" y="699" text-anchor="middle" font-size="8" fill="#2563eb">POST /offer { sdp, type: 'offer' }</text>
+  <line x1="815" y1="708" x2="955" y2="708" stroke="#2563eb" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <!-- 响应 -->
+  <rect x="845" y="720" width="200" height="18" rx="4" fill="#eff6ff"/>
+  <text x="945" y="733" text-anchor="middle" font-size="8" fill="#2563eb">{ sdp, sessionid }</text>
+  <line x1="955" y1="742" x2="815" y2="742" stroke="#0891b2" stroke-width="1" marker-end="url(#arrow-return)" stroke-dasharray="3,2"/>
+
+  <!-- setRemoteDescription -->
+  <rect x="758" y="756" width="270" height="18" rx="4" fill="#f0fdf4"/>
+  <text x="893" y="769" text-anchor="middle" font-size="8" fill="#166534">setRemoteDescription(answer)</text>
+
+  <!-- ontrack -->
+  <rect x="758" y="784" width="240" height="18" rx="4" fill="#f0fdf4"/>
+  <text x="878" y="797" text-anchor="middle" font-size="8" fill="#166534">ontrack → video.srcObject = stream</text>
+
+  <!-- mount 完成 -->
+  <line x1="813" y1="810" x2="422" y2="810" stroke="#0891b2" stroke-width="1" marker-end="url(#arrow-return)" stroke-dasharray="3,2"/>
+
+  <!-- === 完成 === -->
+  <rect x="200" y="830" width="200" height="18" rx="4" fill="#dbeafe"/>
+  <text x="300" y="843" text-anchor="middle" font-size="9" fill="#1d4ed8" font-weight="bold">✅ 切换完成，视频流就绪</text>
+
+  <!-- 图例 -->
+  <rect x="20" y="865" width="12" height="12" rx="2" fill="#ede9fe"/>
+  <text x="38" y="875" font-size="8" fill="#6b7280">调用</text>
+  <rect x="80" y="865" width="12" height="12" rx="2" fill="#fef2f2"/>
+  <text x="98" y="875" font-size="8" fill="#6b7280">销毁</text>
+  <rect x="140" y="865" width="12" height="12" rx="2" fill="#ecfdf5"/>
+  <text x="158" y="875" font-size="8" fill="#6b7280">挂载</text>
+  <rect x="200" y="865" width="12" height="12" rx="2" fill="#eff6ff"/>
+  <text x="218" y="875" font-size="8" fill="#6b7280">网络</text>
+
+  <text x="550" y="910" text-anchor="middle" font-size="8" fill="#9ca3af">v-model 语法糖: :avatarType + @update:avatarType  → 共享 useAvatar 内部的 avatarType ref</text>
+</svg>

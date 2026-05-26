@@ -23,7 +23,7 @@ import { AvatarFactory } from '@/utils/avatar/AvatarFactory';
 export function useAvatar(containerRef, options = {}) {
   const instance = ref(null);
   const currentModel = ref(null);
-  const avatarType = options.type || 'live2d';
+  const avatarType = ref(options.type || 'live2d');
 
   /**
    * 加载指定模型。如果已有实例,先销毁再重建。
@@ -43,7 +43,7 @@ export function useAvatar(containerRef, options = {}) {
 
     try {
       // 创建新实例
-      instance.value = AvatarFactory.create(avatarType, { modelPath });
+      instance.value = AvatarFactory.create(avatarType.value, { modelPath });
 
       // 挂载到 DOM
       await instance.value.mount(containerRef.value);
@@ -76,6 +76,7 @@ export function useAvatar(containerRef, options = {}) {
   return {
     instance,
     currentModel,
+    avatarType,
     load,
     destroy,
   };

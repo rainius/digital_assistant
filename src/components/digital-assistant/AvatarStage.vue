@@ -14,11 +14,23 @@
           @input="$emit('update:modelSize', Number($event.target.value))"
         />
       </div>
+
+      <div class="avatar-type-selector">
+        <select
+          :value="avatarType"
+          class="type-select"
+          @change="$emit('update:avatarType', $event.target.value)"
+        >
+          <option value="live2d">2D卡通</option>
+          <option value="livetalking">真人分身</option>
+        </select>
+      </div>
     </div>
 
     <!-- 模型展示区 -->
-    <div class="model-viewport">
+    <div ref="modelViewportRef" class="model-viewport">
       <div
+        ref="characterWrapperRef"
         class="character-wrapper"
         :style="{
           transform: `scale(${modelSize / 2}) translate(${characterPosition.x}px, ${characterPosition.y}px)`,
@@ -42,7 +54,13 @@
 </template>
 
 <script setup>
+import { ref } from 'vue';
 import VoiceButton from './VoiceButton.vue';
+
+const modelViewportRef = ref(null);
+const characterWrapperRef = ref(null);
+
+defineExpose({ modelViewportRef, characterWrapperRef });
 
 defineProps({
   modelSize: { type: Number, default: 2.0 },
@@ -51,9 +69,10 @@ defineProps({
   isRecording: { type: Boolean, default: false },
   isRecognizing: { type: Boolean, default: false },
   showVoiceButton: { type: Boolean, default: true },
+  avatarType: { type: String, default: 'live2d' },
 });
 
-defineEmits(['update:modelSize', 'mousedown', 'toggle-record']);
+defineEmits(['update:modelSize', 'mousedown', 'toggle-record', 'update:avatarType']);
 </script>
 
 <style scoped>
@@ -87,6 +106,32 @@ defineEmits(['update:modelSize', 'mousedown', 'toggle-record']);
   accent-color: #409eff;
 }
 
+.avatar-type-selector {
+  margin-left: auto;
+}
+
+.type-select {
+  height: 32px;
+  padding: 0 28px 0 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #333;
+  font-size: 0.85rem;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' width='12' height='12' fill='%2364748b' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  transition: border-color 0.2s;
+}
+
+.type-select:focus {
+  border-color: #8b5cf6;
+}
+
 .model-viewport {
   flex: 1;
   display: flex;
@@ -103,6 +148,11 @@ defineEmits(['update:modelSize', 'mousedown', 'toggle-record']);
 }
 
 .character-wrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: transform 0.1s;
   cursor: grab;
   user-select: none;

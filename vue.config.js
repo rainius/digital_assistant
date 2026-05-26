@@ -19,7 +19,14 @@ module.exports = defineConfig({
         changeOrigin: true,
         pathRewrite: { "^/api/asr": "/api/v1/asr" },
         logLevel: "debug",
-      }
+      },
+      // LiveTalking 真人分身（WebRTC 信令 + 文本驱动）
+      "/api/livetalking": {
+        target: "http://192.168.1.168:8010",
+        changeOrigin: true,
+        pathRewrite: { "^/api/livetalking": "" },
+        logLevel: "debug",
+      },
     },
   },
 });

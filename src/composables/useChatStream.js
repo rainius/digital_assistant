@@ -19,10 +19,10 @@
  * chat.reset(); // 新会话
  */
 import { ref } from 'vue';
-import { cleanTextForTTS } from '@/utils/text/cleanTextForTTS';
+import { cleanTextForTTS, cleanTextForParagraphTTS } from '@/utils/text/cleanTextForTTS';
 import { containsSentenceEnd } from '@/utils/text/sentenceSplitter';
 
-export function useChatStream({ llm, onSentence, initialMessages = [] }) {
+export function useChatStream({ llm, onSentence, onParagraph, initialMessages = [] }) {
   const messages = ref(
     initialMessages.length > 0
       ? initialMessages
@@ -33,6 +33,7 @@ export function useChatStream({ llm, onSentence, initialMessages = [] }) {
   // 世代号 —— 每次 send 时递增,旧流的 chunk 回调里检查世代号不匹配则丢弃
   const currentGen = ref(0);
   let sentenceBuffer = '';
+  let paragraphBuffer = '';
 
   /**
    * 发送消息并流式接收 LLM 响应。
@@ -50,6 +51,7 @@ export function useChatStream({ llm, onSentence, initialMessages = [] }) {
     messages.value.push({ role: 'user', content: trimmedText });
     isThinking.value = true;
     sentenceBuffer = '';
+    paragraphBuffer = '';
 
     // 预先插入 AI 消息占位
     const aiMsgIndex = messages.value.push({ role: 'ai', content: '' }) - 1;
@@ -68,8 +70,9 @@ export function useChatStream({ llm, onSentence, initialMessages = [] }) {
           // 1. 更新 UI
           messages.value[aiMsgIndex].content += chunk;
 
-          // 2. 积攒到句子缓冲区
+          // 2. 积攒到句子 / 段落缓冲区
           sentenceBuffer += chunk;
+          paragraphBuffer += chunk;
 
           // 3. 检测句末标点 → 切分完整句子 → 送 TTS
           if (containsSentenceEnd(chunk)) {
@@ -97,6 +100,15 @@ export function useChatStream({ llm, onSentence, initialMessages = [] }) {
               onSentence?.(cleanedSentence);
             }
             sentenceBuffer = '';
+          }
+
+          // 整段一次性回调 —— 段模式适配器（如 LiveTalking）使用
+          if (paragraphBuffer.trim().length > 0) {
+            const cleanedParagraph = cleanTextForParagraphTTS(paragraphBuffer);
+            if (cleanedParagraph) {
+              onParagraph?.(cleanedParagraph);
+            }
+            paragraphBuffer = '';
           }
         }
       );
@@ -127,6 +139,7 @@ export function useChatStream({ llm, onSentence, initialMessages = [] }) {
       : [{ role: 'ai', content: '您好！我是您的**智能学习助手**。\n\n我可以帮您：\n\n- 解答课程**疑难问题**\n- 提供学习资源推荐\n- 辅助完成编程练习\n\n以下是 Python 示例：\n\n```python\ndef greet(name):\n    return f"你好，{name}！"\n```\n\n> 学习如逆水行舟，不进则退。\n\n有什么我可以帮您的吗？' }];
     isThinking.value = false;
     sentenceBuffer = '';
+    paragraphBuffer = '';
 
     // 如果 LLM 适配器支持 clearContext(如 DifyAdapter),调用它
     if (typeof llm.clearContext === 'function') {

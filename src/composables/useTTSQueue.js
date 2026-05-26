@@ -21,18 +21,48 @@ export function useTTSQueue({ tts, avatar }) {
 
   /**
    * 把一句文本送进 TTS,拿到音频 URL 后推入播放队列。
+   * 段模式适配器（如 LiveTalking）整段一次性发送，所以这里直接跳过。
    * @param {string} sentence - 已清洗的纯文本
    */
   async function enqueueText(sentence) {
     if (!sentence || stopped) return;
+    if (avatar?.value?.streamMode === 'paragraph') return;
 
     try {
-      const audioUrl = await tts.fetchAudio(sentence);
-      if (!audioUrl || stopped) return;
-      queue.push(audioUrl);
-      drain(); // 踢一脚播放引擎
+      // 文本驱动型适配器（如 LiveTalking）不需要外部 TTS，跳过合成
+      const skipTTS = avatar?.value && avatar.value.needsTTS === false;
+      const audioUrl = skipTTS ? null : await tts.fetchAudio(sentence);
+
+      if (stopped) return;
+      if (!skipTTS && !audioUrl) return;
+
+      queue.push({ audioUrl, text: sentence });
+      drain();
     } catch (err) {
       console.error('[TTS Queue] 音频合成失败:', err);
+    }
+  }
+
+  /**
+   * 整段一次性入队 —— 段模式适配器（如 LiveTalking）使用，
+   * 让服务端按自己的节奏拆句、合成、播放。句模式适配器忽略本调用。
+   * @param {string} paragraph - 已清洗的整段文本
+   */
+  async function enqueueParagraph(paragraph) {
+    if (!paragraph || stopped) return;
+    if (avatar?.value?.streamMode !== 'paragraph') return;
+
+    try {
+      const skipTTS = avatar?.value && avatar.value.needsTTS === false;
+      const audioUrl = skipTTS ? null : await tts.fetchAudio(paragraph);
+
+      if (stopped) return;
+      if (!skipTTS && !audioUrl) return;
+
+      queue.push({ audioUrl, text: paragraph });
+      drain();
+    } catch (err) {
+      console.error('[TTS Queue] 段落合成失败:', err);
     }
   }
 
@@ -43,7 +73,7 @@ export function useTTSQueue({ tts, avatar }) {
     if (isPlaying.value || queue.length === 0 || stopped) return;
 
     isPlaying.value = true;
-    const audioUrl = queue.shift();
+    const { audioUrl, text } = queue.shift();
 
     try {
       // 播放前切换表情
@@ -51,9 +81,9 @@ export function useTTSQueue({ tts, avatar }) {
         avatar.value.setEmotion('thinking');
       }
 
-      // 让数字人说话
+      // 让数字人说话（text 供 LiveTalking 等文本驱动型适配器使用）
       if (avatar?.value) {
-        await avatar.value.speak(audioUrl);
+        await avatar.value.speak(audioUrl, text);
       }
 
       // 说完恢复平静
@@ -66,8 +96,7 @@ export function useTTSQueue({ tts, avatar }) {
     } catch (error) {
       console.error('[TTS Queue] 音频播放被中断或出错:', error);
     } finally {
-      // 【关键】播放完必须销毁 blob URL,否则内存泄漏
-      URL.revokeObjectURL(audioUrl);
+      if (audioUrl) URL.revokeObjectURL(audioUrl);
       isPlaying.value = false;
 
       // 递归调用自己,继续播放队列里剩下的句子
@@ -83,7 +112,7 @@ export function useTTSQueue({ tts, avatar }) {
   function stop() {
     stopped = true;
     // 释放队列中所有未播放的 URL(修复内存泄漏)
-    queue.forEach((url) => URL.revokeObjectURL(url));
+    queue.forEach(({ audioUrl }) => { if (audioUrl) URL.revokeObjectURL(audioUrl); });
     queue.length = 0;
     isPlaying.value = false;
   }
@@ -95,6 +124,7 @@ export function useTTSQueue({ tts, avatar }) {
 
   return {
     enqueueText,
+    enqueueParagraph,
     stop,
     isPlaying,
   };
