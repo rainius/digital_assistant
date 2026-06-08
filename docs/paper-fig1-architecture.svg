@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 780" font-family="'PingFang SC','Microsoft YaHei','SimHei',sans-serif">
+  <defs>
+    <marker id="arr" markerWidth="10" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#475569"/>
+    </marker>
+    <linearGradient id="gPres" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#eef2ff"/><stop offset="100%" stop-color="#dbeafe"/>
+    </linearGradient>
+    <linearGradient id="gMid" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#f0fdf4"/><stop offset="100%" stop-color="#dcfce7"/>
+    </linearGradient>
+    <linearGradient id="gBack" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#fffbeb"/><stop offset="100%" stop-color="#fef3c7"/>
+    </linearGradient>
+    <linearGradient id="gModel" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#fdf2f8"/><stop offset="100%" stop-color="#fce7f3"/>
+    </linearGradient>
+  </defs>
+
+  <text x="500" y="34" text-anchor="middle" font-size="18" font-weight="700" fill="#1e293b">图 1　系统总体架构</text>
+
+  <!-- 前端展示层 -->
+  <rect x="40" y="64" width="920" height="160" rx="8" fill="url(#gPres)" stroke="#93c5fd" stroke-width="1.5"/>
+  <rect x="40" y="64" width="160" height="160" rx="8" fill="#3b82f6"/>
+  <text x="120" y="140" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">前端</text>
+  <text x="120" y="166" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">展示层</text>
+
+  <rect x="220" y="92" width="220" height="104" rx="6" fill="#ffffff" stroke="#bfdbfe"/>
+  <text x="330" y="130" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">数字人舞台</text>
+  <text x="330" y="156" text-anchor="middle" font-size="11" fill="#475569">形象渲染容器</text>
+  <text x="330" y="176" text-anchor="middle" font-size="11" fill="#475569">舞台缩放与拖拽</text>
+
+  <rect x="460" y="92" width="220" height="104" rx="6" fill="#ffffff" stroke="#bfdbfe"/>
+  <text x="570" y="130" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">对话界面</text>
+  <text x="570" y="156" text-anchor="middle" font-size="11" fill="#475569">流式文本呈现</text>
+  <text x="570" y="176" text-anchor="middle" font-size="11" fill="#475569">麦克风语音输入</text>
+
+  <rect x="700" y="92" width="240" height="104" rx="6" fill="#ffffff" stroke="#bfdbfe"/>
+  <text x="820" y="130" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">交互控件</text>
+  <text x="820" y="156" text-anchor="middle" font-size="11" fill="#475569">形象切换 / 模式切换</text>
+  <text x="820" y="176" text-anchor="middle" font-size="11" fill="#475569">声波反馈与提示</text>
+
+  <line x1="500" y1="224" x2="500" y2="252" stroke="#475569" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr)"/>
+
+  <!-- 服务接入与编排层 -->
+  <rect x="40" y="252" width="920" height="160" rx="8" fill="url(#gMid)" stroke="#86efac" stroke-width="1.5"/>
+  <rect x="40" y="252" width="160" height="160" rx="8" fill="#16a34a"/>
+  <text x="120" y="316" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">服务接入</text>
+  <text x="120" y="340" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">与</text>
+  <text x="120" y="364" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">编排层</text>
+
+  <rect x="220" y="280" width="172" height="104" rx="6" fill="#ffffff" stroke="#bbf7d0"/>
+  <text x="306" y="310" text-anchor="middle" font-size="13" font-weight="600" fill="#14532d">统一形象接入约定</text>
+  <text x="306" y="338" text-anchor="middle" font-size="11" fill="#475569">挂载 / 说话 / 表情</text>
+  <text x="306" y="356" text-anchor="middle" font-size="11" fill="#475569">打断 / 销毁</text>
+  <text x="306" y="374" text-anchor="middle" font-size="11" fill="#475569">投递粒度声明</text>
+
+  <rect x="404" y="280" width="172" height="104" rx="6" fill="#ffffff" stroke="#bbf7d0"/>
+  <text x="490" y="310" text-anchor="middle" font-size="13" font-weight="600" fill="#14532d">流式调度与句切分</text>
+  <text x="490" y="340" text-anchor="middle" font-size="11" fill="#475569">流式文本→句 / 段</text>
+  <text x="490" y="360" text-anchor="middle" font-size="11" fill="#475569">下游节奏控制</text>
+
+  <rect x="588" y="280" width="172" height="104" rx="6" fill="#ffffff" stroke="#bbf7d0"/>
+  <text x="674" y="310" text-anchor="middle" font-size="13" font-weight="600" fill="#14532d">世代号取消</text>
+  <text x="674" y="340" text-anchor="middle" font-size="11" fill="#475569">连续提问场景下</text>
+  <text x="674" y="360" text-anchor="middle" font-size="11" fill="#475569">旧流即时丢弃</text>
+
+  <rect x="772" y="280" width="172" height="104" rx="6" fill="#ffffff" stroke="#bbf7d0"/>
+  <text x="858" y="310" text-anchor="middle" font-size="13" font-weight="600" fill="#14532d">后端服务封装</text>
+  <text x="858" y="340" text-anchor="middle" font-size="11" fill="#475569">对话 / 识别 / 合成</text>
+  <text x="858" y="360" text-anchor="middle" font-size="11" fill="#475569">统一调用接口</text>
+
+  <line x1="500" y1="412" x2="500" y2="440" stroke="#475569" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr)"/>
+
+  <!-- 后端服务层 -->
+  <rect x="40" y="440" width="920" height="140" rx="8" fill="url(#gBack)" stroke="#fcd34d" stroke-width="1.5"/>
+  <rect x="40" y="440" width="160" height="140" rx="8" fill="#d97706"/>
+  <text x="120" y="500" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">后端</text>
+  <text x="120" y="526" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">服务层</text>
+
+  <rect x="220" y="468" width="172" height="84" rx="6" fill="#ffffff" stroke="#fde68a"/>
+  <text x="306" y="498" text-anchor="middle" font-size="13" font-weight="600" fill="#78350f">本地 Dify 工作流</text>
+  <text x="306" y="524" text-anchor="middle" font-size="11" fill="#475569">受限领域 RAG 对话</text>
+
+  <rect x="404" y="468" width="172" height="84" rx="6" fill="#ffffff" stroke="#fde68a"/>
+  <text x="490" y="498" text-anchor="middle" font-size="13" font-weight="600" fill="#78350f">SenseVoice 服务</text>
+  <text x="490" y="524" text-anchor="middle" font-size="11" fill="#475569">语音识别</text>
+
+  <rect x="588" y="468" width="172" height="84" rx="6" fill="#ffffff" stroke="#fde68a"/>
+  <text x="674" y="498" text-anchor="middle" font-size="13" font-weight="600" fill="#78350f">GPT-SoVITS 服务</text>
+  <text x="674" y="524" text-anchor="middle" font-size="11" fill="#475569">语音合成 / 发音人</text>
+
+  <rect x="772" y="468" width="172" height="84" rx="6" fill="#ffffff" stroke="#fde68a"/>
+  <text x="858" y="498" text-anchor="middle" font-size="13" font-weight="600" fill="#78350f">LiveTalking 服务</text>
+  <text x="858" y="524" text-anchor="middle" font-size="11" fill="#475569">真人分身渲染</text>
+
+  <line x1="500" y1="580" x2="500" y2="608" stroke="#475569" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr)"/>
+
+  <!-- 模型层 -->
+  <rect x="40" y="608" width="920" height="100" rx="8" fill="url(#gModel)" stroke="#f9a8d4" stroke-width="1.5"/>
+  <rect x="40" y="608" width="160" height="100" rx="8" fill="#db2777"/>
+  <text x="120" y="666" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">模型层</text>
+
+  <rect x="220" y="630" width="136" height="58" rx="6" fill="#ffffff" stroke="#fbcfe8"/>
+  <text x="288" y="654" text-anchor="middle" font-size="12" font-weight="600" fill="#9d174d">Qwen2.5-3B</text>
+  <text x="288" y="674" text-anchor="middle" font-size="10" fill="#475569">对话生成</text>
+
+  <rect x="366" y="630" width="136" height="58" rx="6" fill="#ffffff" stroke="#fbcfe8"/>
+  <text x="434" y="654" text-anchor="middle" font-size="12" font-weight="600" fill="#9d174d">BGE 中文</text>
+  <text x="434" y="674" text-anchor="middle" font-size="10" fill="#475569">向量化检索</text>
+
+  <rect x="512" y="630" width="136" height="58" rx="6" fill="#ffffff" stroke="#fbcfe8"/>
+  <text x="580" y="654" text-anchor="middle" font-size="12" font-weight="600" fill="#9d174d">SenseVoice-Small</text>
+  <text x="580" y="674" text-anchor="middle" font-size="10" fill="#475569">语音识别</text>
+
+  <rect x="658" y="630" width="136" height="58" rx="6" fill="#ffffff" stroke="#fbcfe8"/>
+  <text x="726" y="654" text-anchor="middle" font-size="12" font-weight="600" fill="#9d174d">GPT-SoVITS</text>
+  <text x="726" y="674" text-anchor="middle" font-size="10" fill="#475569">语音合成权重</text>
+
+  <rect x="804" y="630" width="140" height="58" rx="6" fill="#ffffff" stroke="#fbcfe8"/>
+  <text x="874" y="654" text-anchor="middle" font-size="12" font-weight="600" fill="#9d174d">人脸驱动模型</text>
+  <text x="874" y="674" text-anchor="middle" font-size="10" fill="#475569">真人分身渲染</text>
+
+  <text x="500" y="744" text-anchor="middle" font-size="12" fill="#64748b">前端在浏览器内运行；后端服务与模型部署于同一台设备或同一内网，对外网与第三方接口无依赖</text>
+  <text x="22" y="386" text-anchor="middle" font-size="11" fill="#64748b" transform="rotate(-90,22,386)" letter-spacing="2">依赖方向</text>
+</svg>

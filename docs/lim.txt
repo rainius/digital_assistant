@@ -1,0 +1,502 @@
+                       No.8/2025    ADVANCED MOTION PICTURE TECHNOLOGY
+现代电影技术                                                                   前 沿 技 术
+
+
+
+
+          面向电影制作的三维数字人生成和
+                    编辑系统设计与应用研究
+                                   李梦甜 1,2   姚声祥 1    杨   洋1
+
+                               1. 上海大学上海电影学院，上海 200072
+                         2. 上海电影特效工程技术研究中心，上海 200072
+
+
+       【摘要】针对传统数字人制作流程成本高、周期长的产业瓶颈，本文以提升生产效率为核心
+    目标，设计并实现了一套单目视频驱动的数字人快速生成和编辑系统。该方案创新整合了三维
+    高斯泼溅高效渲染与易于编辑的优势，允许用户在短时间内生成高保真数字人后，对素材进行
+    智能分割和存储，并立即进行直观、灵活的二次创作。测试结果显示，本系统能够显著缩短数字
+    人的制作时间，并降低对专业采集设备与技能的依赖。研究表明，一体化生成和编辑系统是实
+    现电影工业数字人生产降本增效的可行路径，可为海量三维素材库的构建和中小成本影片的视
+    觉效果制作提供有力支持。
+       【关键词】数字人；人工智能；电影制作；神经辐射场；三维高斯泼溅；DeepSeek
+       【中图分类号】TP39; TP183; J93
+       【DOI】10.3969/j.issn.1673-3215.2025.08.002
+
+
+   1 引言                                            合提供了关键技术支持。通过优化算法效率和提升
+   数字人生成作为计算机视觉（CV）与计算机图形                          视觉效果的逼真度，数字人技术能够显著增强电影
+学（CG）的核心研究领域，同时也是现代电影特效技                           中角色的表现力和沉浸感，为观众带来更加震撼的
+术的重要组成部分，其研究目标可描述为对人体、人                            视觉体验。从《超人》中冲破天际的钢铁之躯，到《本
+                         [1]
+脸及服装等对象的数字化表示 。通过技术手段，将                            杰明·巴顿奇事》里逆龄生长的奇幻形象，再到《波西
+这些对象转化为数字形式，以实现对人类特征的精                             米亚狂想曲》重现的万人演唱会盛况，数字人技术始
+确建模与表达。在电影特效领域，数字人生成的研                             终伴随着电影艺术对特殊表现手法的需求而持续演
+究尤为重要，无论是从零构建一个完全虚构的虚拟                             进。数字人技术不仅推动了电影特效技术的发展，
+角色，还是通过创建演员的数字替身来复现其外貌                             还为未来电影创作提供了更多可能性。
+与表演，其为动作捕捉、表情生成以及虚拟场景的融                               随着人工智能（AI）技术的持续演进，其在电影
+
+
+【基金项目】国家自然科学基金青年科学基金项目“有限标注下的室内三维场景感知与编辑关键方法研究”
+                                              （62402306）；上海市“科技创新行动计
+划”自然科学基金项目“复杂室内三维场景细粒度感知关键方法研究”
+                              （24ZR1422400）。
+【作者信息】李梦甜（1988—），女，博士，上海大学上海电影学院、上海电影特效工程技术研究中心讲师，主要研究方向：面向影视、游戏与艺术领
+域的数字内容理解与生成；姚声祥（1999—），男，上海大学上海电影学院硕士研究生在读，主要研究方向：三维重建、数字人重建；杨洋（1986—），
+男，硕士，上海大学上海电影学院讲师，主要研究方向：电影创作。
+
+
+                                             - 12 -
+                  No.8/2025   ADVANCED MOTION PICTURE TECHNOLOGY
+现代电影技术                                                                  前 沿 技 术
+
+
+
+
+                              图1   数字人重建和生成的分类
+
+工业中的应用正极大提高电影制作的效率[2]，使创建                  低要求的摄影环境中实现高效的重建。基于这一目
+高逼真度数字人的成本逐步降低。数字人生成和编                     标，学术研究主要分为以下几个方向：在不同的图像
+辑作为当前学术界的前沿研究领域，每年涌现大量                     输入条件下的角色生成、基于文本的虚拟角色生成
+创新技术推动该研究方向向纵深发展。本文系统梳                     以及高效率的模型编辑。如图 1 所示，输入源的多样
+理了学术界近年来在数字人生成和编辑领域的技术                     性决定了算法所能获取的信息量。在此基础上，各类
+进展与研究趋势，探讨其在电影特效中的潜在应用，                    处理方法相辅相成，形成了技术合力，共同促进了数
+并提出一个行之有效的数字人生成和编辑系统，最                     字人技术的发展演进。
+后剖析了当前技术将会如何影响电影制作流程及其                         2.1 基于密集多视角输入的方法
+发展方向。                                          基于密集多视角输入进行动态人体三维重建，
+   2 基于 AI 技术的数字人生成和编辑技术                   是近年来备受关注的研究方向。传统图形学方法通
+发展概况                                       常采用光场系统采集数据，并通过表面、图像或光度
+   当前工业界广泛应用的光场（Light Stage）系列             配准等方式来整合多视角信息[5]，或利用骨架驱动拟
+三维重建技术，是由 Paul Debevec 团队于 2000 年提         合表面[6,7]。这些方法在处理几何与纹理信息时流程
+出的创新性采集系统[3]。该技术体系通过构建精密                   复杂，相较之下，基于 AI 的新范式通过引入先进的神
+的光场采集装置，在球面坐标系下布置超过 150 个可                 经表征技术，不仅大幅提升了重建的计算效率，更在
+控 LED 光源与多视角同步相机阵列，结合光度立体                  人体形态及衣物细节的精准捕捉上展现出卓越
+（Photometric Stereo）视觉方法，实现毫米级精度的动         性能。
+态几何重建并获取高分辨率表面贴图。相较于其他                         Zheng 等[8] 通过使用在参数化人体模型表面定义
+多目立体视觉方法，Light Stage 通过精确控制光照方             一系列信息点，将其作为局部的结构信息点输入给
+向和摄影序列，有效解决了复杂材质表面（如皮肤、                    多层感知机（MLP），使用神经辐射场（NeRF）来表达，
+毛发等）的反射分离难题，其数据采集流程已广泛应                    支持使宽松的衣服在不同的动作下产生自然的阴影
+用于电影特效 。 [4]
+                                           变化。Li 等[9] 通过将局部的信息点和关节骨架进行
+   光场采集环境搭建通常需要大量的人力和物力                    结合，通过多层次的三平面编码，大幅提高了重建精
+投入，这使基于光场技术生成虚拟角色的成本居高                     度。然而，基于神经辐射场的方法往往受限于渲染
+不下。当前研究的核心问题在于如何降低数字人的                     速度，限制了其重建效率。
+生成成本，同时提升其生成效率和表现效果。研究                         Li 等[10] 提出可动画高斯（Animatable Gaussians），
+人员通过引入 AI 技术并探索新颖的表达方式，致力                  使用符号距离场（SDF）作为基准几何模型，结合二维
+于在更短时间内实现高质量的数字人生成，或在更                     卷积网络来学习高斯贴图，这样既可获得基于符号
+
+                                     - 13 -
+                               No.8/2025          ADVANCED MOTION PICTURE TECHNOLOGY
+现代电影技术                                                                                         前 沿 技 术
+
+距 离 场 的 准 确 的 几 何 结 果 ，又 达 成 三 维 高 斯 泼 溅                       观赏。Chen 等[16] 用参数化人体模型的顶点作为神经
+（3D Gaussian Splatting, 3DGS）的高效渲染速度，并且                        渲染中视点变化的控制点，其将一个动态的人体重
+                                           [11]
+保证了宽松衣服的重建质量。Chen 等 使用显式的                                      建问题转化为静态人体模型的采样问题，随着输入
+网格表达从隐式距离场中提取出的信息，重建出适                                         的姿态变化驱动人体模型重演出不同的姿势。为进
+应当前工业渲染管线的人体模型。Chen 等[12] 在 Ani⁃                               一步提高重建效率，Instant⁃NGP[17]通过哈希网格查询
+matable Gaussians 基础上，通过使用非刚体变化的网                              辐射场的光线点，大幅提高了神经辐射场的渲染速
+格模型替代了符号距离场，并将局部高斯的属性使                                         度。将参数化人体模型的顶点输入哈希网格中，Ji⁃
+用基于姿势的混合形状（Blend Shape）进行表达，既                                  ang 等[18] 实现了 1 分钟内重建人体模型，并将数字人
+保证了具备宽松衣物的细节，也提供了一个离线神                                         的渲染效率提高至 15 FPS。
+经网络用于生成服装的非刚体变化，结合三维高斯                                             为追求更高的渲染效率，新技术将原有的神经
+表达使其能够进入渲染引擎中进行高效、高速的渲                                         辐射场（NeRF）模块，替换为三维高斯泼溅（3DGS）表
+染和动画。这些方法生成的高保真虚拟角色具有优                                         示方法。Qian 等[19] 利用可学习的蒙皮权重控制局部
+良的几何和贴图细节，不再需要艺术家花费大量时                                         高斯点的变化，使其能在 45 分钟左右重建出高精度
+间优化模型细节，能够直接投入影视制作流程。                                          的人体模型。Hu 等[20] 采用参数化人体模型的 UV 纹
+         除 了 使 用 神 经 网 络 来 表 达 衣 服 的 褶 皱 ，Zheng                理作为姿态特征以生成高斯点云，可实现通过姿势
+  [13]
+等 通过拟合每一帧静态网格，使用物理模拟的方                                         识别实时控制人物模型的变换。但上述方法都无法
+式不断拟合出数字人姿势和衣服变化之间的关系，                                         直接迁移至当前的渲染管线中。Splatting Avatar[21]将
+并使用基于物理的可微渲染来获得整体的外观建模                                         高斯点与三角形网格面绑定，并在表面上附加平移，
+结果。该方法可直接生成一个支持姿态与衣物协同                                         可实现直接导入渲染引擎中使用并控制。Moon 等[22]
+形变的可驱动数字人，从而显著提升下游动画的制                                         将参数化人体模型的顶点编码到三平面空间，并使
+作效率。                                                           用高斯作为纹理表示，该方法具备对人体姿态和面
+         2.2 基于稀疏多视角输入的方法                                      部表情进行动画控制的能力。以上方法为之后在电
+         2.2.1 基于稀疏多视角视频的方法                                    影工业中快速迭代虚拟预演（PreViz）场景和素材提
+         相较于搭设复杂的光场系统，在空间中不同方                                  供了有效的技术支撑。
+向布置 4 到 6 个固定摄影机可快速重建数字人。                                          2.2.3 基于单人照片集输入的方法
+Peng 等[14] 使用参数化人体模型的顶点作为潜在编码                                      当目标人物的动态视频序列难以获取时，一种
+输入多层感知机，这些顶点会随着人体姿态不断移                                         有效的替代方案是利用一组包含不同姿态与视角的
+动，以存储不同动作、不同视点下人体模型的纹理信                                        人物静态图像完成三维模型的重建。Xiu 等[23] 将非
+息，将潜在编码和神经混合权重场相结合，将不同角                                        结构化的图像与文本信息，转化为适用于数字人生
+度所得信息权重进行混合，即可生成可驱动的人体                                         成的结构化表征。使用多模态模型整合不同来源的
+模型。在较少的视角条件下，即可制作出《黑客帝                                         图像数据，通过语义分割定位目标，并从中提炼出关
+国》中的“子弹时间”特效。                                                  键的外观特征。这些特征通过统一组织，作为生成
+         2.2.2 基于单人旋转视频的方法                                     高质量数字人的基础，其使用基于可微分行进四面
+         相较于需要配准的多视角摄像头，通过录制角                                  体（Differentiable Marching Tetrahedra, DMTet）的方法
+色在镜头中间保持特定姿态旋转的视频也能生成目                                         从静态图像集合中重建三维人体模型。其生成的网
+                        [15]
+标角色数字人。Weng 等 通过将人体姿势作为网络                                      格具有良好的拓扑结构且与主流图形渲染管线兼
+的输入，用骨骼变化控制空间中视点的变化，该神经                                        容，这一特性为创建特定时期（如演员年轻时）的数
+网络通过学习并编码一个动态人体的多视角信息，                                         字替身或进行数字资产归档提供了一条高效的技术
+进而支持对原始的单目舞蹈视频进行新视角合成与                                         路径。
+
+                                                         - 14 -
+                        No.8/2025       ADVANCED MOTION PICTURE TECHNOLOGY
+现代电影技术                                                                       前 沿 技 术
+
+        2.3 基于单张图像输入的方法                              模型纹理的直观编辑，也为构建大规模三维角色资
+        单张图像作为生成的唯一输入源，其固有的信                         产库提供了清晰的技术蓝图。在此基础上，生成精
+息局限性为三维人体建模带来了巨大挑战。具体而                               度的持续提升将有望打通从二维图像到三维资产的
+言，模型必须在严重缺乏多视角线索的情况下，推断                              转化链路，最终赋能电影工业实现资产制作效率的
+出被遮挡部分的精确几何形态与表面纹理。德国马                               巨大飞跃。
+克斯·普朗克智能系统研究所（MPI⁃IS）由 Michael J.                        2.4 基于文本输入的方法
+Black 领导的团队做出了开创性贡献，他们先后提出                               随着基于扩散模型的生成方法持续发展，基于
+了经典的参数化人体模型 SMPL 及其重要的扩展         [24]
+                                                     文字描述直接生成人物模型的研究逐渐增多。大多
+版本 SMPL⁃X[25]。参数化人体模型将体型表达和姿                         数方法通过在参数化人体模型周围进行采样，生成
+势表达使用参数进行拟合。在实现过程中，往往将                               初步的人体模型，并利用多样化的监督方法生成不
+图像特征输入给全连接神经网络来获得人体参数，                               同类型的模型。Liao 等[33] 通过对参数化人体模型进
+从人体参数中还原一个粗糙的人体模型。Ma 等[26]在                          行网格细分，并以目标法线图和颜色图为监督，学习
+参数化人体模型的顶点上进行偏移，以生成目标角                               一个从粗糙到精细的顶点偏移。由此生成的高精度
+                          [27]
+色身上的服装细节。Corona 等 通过使用模板化的                           人体模型不仅捕捉了丰富的表面细节，还能直接兼
+衣服拟合图像中的衣物信息，为参数化人体模型穿                               容主流的图形渲染管线，无需额外处理。
+上衣服。尽管这些方法能够有效驱动参数化人体模                                   2.5 可编辑的数字人技术
+型生成动画，但此类模型本身固有的局限性也十分                                   神经辐射场（NeRF）与三维高斯泼溅（3DGS）等
+明显：一方面，其在表达个体身份的独特性上能力有                              新兴技术虽然在三维重建速度上展现出巨大优势，
+限；另一方面，其重建的几何细节与表面保真度也相                              但其成功也伴随着显著代价。由于采用了与传统多
+                 [28]
+对不足。Xiu 等 结合了隐式距离场和参数化人体                             边形网格截然不同的三维表示方法，这些模型往往
+模型，通过采用类似于正反两个角度配准的方式来                               难以直接编辑，从而为后续的精细化修改与艺术创
+生成不同角度下的网格模型并使用参数化人体模型                               作带来了巨大挑战。编辑方法通常结合大语言模型
+进行补全，能够生成极端姿势图片的人体模型，并使                              和生成式模型在输入图像上进行修改，再从二维的
+用参数对齐进行驱动。为提高颜色准确度和模型精                               结果提升至三维。Mendiratta 等[34]通过先重建一个神
+度，Zhang 等[29] 通过将单张图片及其对应的参数化人                       经辐射场模型，再输入期望编辑的文本对多角度图
+体模型法向一起输入给识别能力更强的 Transformer                        像进行编辑，同时对辐射场模型进行修改和重建。
+模型生成基础的模型，之后使用生成模型为得到的                               Sunagad 等[35] 使用类似方式，通过生成式模型对重建
+粗糙模型和贴图进行更为精细的修补和上色，将传                               的图像进行编辑，并且采用 ControlNet 生成角色编辑
+统重建方法和新的生成式方式相结合，增强模型的                               后的法向结果作为生成的监督来提高编辑后的生成
+编辑能力。Huang 等[30] 使用大语言模型来理解图片                        模型质量。
+的内容，在单图重建的基础上，使用扩散模型对衣服                                  除使用扩散生成模型编辑原型图片的方法外，
+上的细节进行更细致的监督和优化。                                     近年来有诸多方法专注于如何在神经辐射场等特殊
+        通过使用大模型进行大量的数据学习和生成分                         表达形式上直接编辑的方法。Xiao 等[36] 在参数化人
+析，单图重建已能够实现 1 s 左右的重建速度。Qiu                          体模型的表面构造潜在编码，以分离几何和纹理，从
+等 使用 30 万个人体视频进行学习，将图片和参数
+ [31]
+                                                     而实现重光照和局部阴影编辑。为使编辑方式对用
+化人体模型的不同部分使用 Transformer 模型进行关                       户友好，Feng 等[37] 结合基于神经辐射场表达的衣服
+联，最后使用三维高斯泼溅的方法进行解码渲染。                               和基于显式网格的身体建模，以更好地表示每个单
+Zhuang 等 通过在 UV 空间中对人体模型进行参数
+          [32]
+                                                     独的部分，用户可快速将衣服转移到另一个角色身
+化。以上方法基于贴图和三维网格表达，可实现对                               上。Lin 等[38] 使用两层高斯贴图来增强衣服的细节，
+
+                                               - 15 -
+                      No.8/2025   ADVANCED MOTION PICTURE TECHNOLOGY
+现代电影技术                                                                                                    前 沿 技 术
+
+并实现衣服的交换和编辑。虽然这些研究能生成颇                         材，并分别保存至不同的素材库中。
+为逼真的虚拟试衣效果，但他们普遍缺乏对试穿后
+衣物进行精细化编辑的能力，例如调整衣物的款式、
+版型或褶皱形态。Ho 等[39] 将特征存储在网格顶点
+上，为这些特征创建一个码本，通过对码本进行编辑
+和 替 换 ，能 够 做 到 较 大 范 围 内 的 局 部 编 辑 。 Zhang
+等[40] 使用扩散模型在参数化人体的 UV 平面上生成                               图3      单目视频条件下的三维数字人生成流程图
+高斯贴图，并附加在参数化人体模型表面，可实现局                              （1）算法设计
+部几何和贴图的编辑。这些方法为艺术家后续编辑                                具 体 而 言 ，针 对 输 入 的 单 目 视 频 ，首 先 采 用 三
+提供了丰富的个性化工具。
+                                               维 人 体 重 建 方 法 ，从 中 重 建 出 参 数 化 人 体 模 型
+    3 单目视频条件下的三维数字人生成和                         χ ( Iˉ) = ( β,θ ) ，其中 β 为人体体型参数，θ 为人体姿势
+编辑系统设计                                         参数，并根据图像分割方法，将角色的衣服和人体分
+   本文旨在构建一个数字人快速生成且可编辑的                        割出来。根据重建出的参数化人体模型将其表面权
+系统，以期为电影制作提供便利，提高制作效率。如                        重扩散到空间网格中，以此在标准空间中构建权重
+图 2 所示，该系统的工作流程主要包括以下步骤：用                      网格 W，采用权重网格进行驱动，能够更快速获取驱
+户通过上传单人旋转视频到服务器上，系统会在后                         动信息，提高重建效率。之后在参数化人体模型表
+台处理视频数据，并通过三维重建方法生成一个可                         面通过随机采样得到一系列三维高斯点云
+驱动的人体模型。在生成角色模型后，系统会将该
+模型按照语义智能分割并存储到不同的素材库，以
+                                                 (                 )
+                                               G x,s,r,c,α, f ，其中 x 为点云位置，s 为高斯缩放参数，
+                                               r 为高斯旋转参数，c 为高斯的颜色值，α 为高斯的透
+供艺术家在后续流程中进行个性化编辑，并为未来
+                                               明度，f 为语义标签。根据高斯点云在标准空间的位
+的影视相关产品开发提供素材。同时用户可在系统
+                                               置 xˉ 从权重网格中获取其形变权重，并使用参数化
+中通过自然语言编辑角色模型，调整后的素材可直
+                                               人体模型的姿势参数获得其驱动状态，获取公式为：
+接导入三维软件中使用。在所有的输入中，单目旋
+                                                                       (        )             ( ) ()
+                                                                                       n
+
+转视频在数据采集的简易度与最终重建的高保真度                                             D xˉ,θ, β = ∑W xˉ, β B θ                                  （1）
+                                                                                      i=1
+之间达到了一个较好的平衡点，因此大量的研究都
+                                                      式（1）中，B 为参数化人体模型的混合形状公式。
+基于此条件进行算法设计。基于此，本系统采用单
+                                               根据驱动结果将三维高斯点云从标准空间变换到不
+目视频作为输入条件，并采用三维高斯泼溅算法，以
+                                               同的姿势空间，通过三维高斯泼溅算法，重演出真实
+实现数字人的高效生成与快速编辑。
+                                               图像所对应的重演图片 I t 和语义分割图片 I f，通过可
+                                               微分渲染计算图像损失，反向传播优化规范空间的
+                                               高斯参数。此外为了让三维高斯点云在不同姿势下
+                                               得到的模型结果更均匀，我们引入了刚体变形约束，
+                                               即 L i,rigid
+                                                       j   = w i, j||( x j, o - x i, o - R i, o R -1
+                                                                                                  i, c ( x j, c - x i, c ) )|| 2 ，使其相
+  图2   单目视频条件下的三维数字人生成和编辑系统流程图                 邻顶点 x i 和 x j 的刚体变化在不同空间中保持一致，其
+   3.1 单目视频条件下基于三维高斯泼溅的人体                      中 R i, o R -1
+                                                          i, c 是将标准空间的有向距离变换到观察空间
+
+模型生成算法                                         中的旋转矩阵，w i, j 是一个预定义的权重矩阵用于限
+   图 3 所示算法通过输入角色单目视频，使用基于                     制刚体变形约束的大小。在重建过程中，通过为不
+三维高斯泼溅的人体模型重建算法生成三维模型。                         同高斯点云注入人体和衣服的语义信息，将真实图
+在生成过程中，算法会根据角色图片进行智能分割，                        片 Iˉf 通过 SAM 分割模型进行语义分割，并与重演的
+将三维模型基于语义信息分割为角色模型和服饰素                         特征图 I f 进行损失计算：L f = ||Iˉf - I f||。我们的损失
+
+                                         - 16 -
+                                     No.8/2025           ADVANCED MOTION PICTURE TECHNOLOGY
+现代电影技术                                                                                                        前 沿 技 术
+
+由图像的 L1 范数距离损失 L l1，图像感知损失 L SSIM，刚                                   有指标上都具较为明显的优势，并且重建时间相较
+体形变约束 L rigid 和特征损失 L f 组成，综上所述，总体                                    于 3DGS⁃Avatar 的 45 分钟，缩减至 30 分钟。综合多
+的损失函数为：                                                               项指标，本文方法在效率上提升了 33.33%，在重建精
+        L = L l1 + λ SSIM L SSIM + λ rigid L rigid + λ f L f   （2）    度上平均提升了 10%。
+    式（2）中 ，λ SSIM、λ rigid 和 λ f 是 损 失 函 数 的 权 重 算                              表1      本文方法与文献[18,19]的定量对比结果
+子。生成后的三维高斯模型，与参数化人体模型顶                                                       方法              PSNR↑   SSIM↑      LPIPS↓
+
+点 进 行 映 射 M，该 映 射 通 过 使 用 k 近 邻（k ⁃ Nearest                             InstantAvatar[18]    28.88   0.9701      0.025
+                                                                        3DGS⁃Avatar   [19]
+                                                                                             32.05   0.9659      0.018
+Neighbor, kNN）将高斯点云映射到最近的参数化人
+                                                                             本文              34.18   0.9769      0.015
+体模型顶点上，并将其世界坐标转换为局部坐标。
+                                                                            3.2 基于三维高斯泼溅的人体模型编辑系统
+映射后的三维高斯模型能直接导入工业引擎中进行
+                                                                            特殊表达的人体模型虽无法直接在工业引擎中
+动画化。
+                                                                      快速编辑，但本文系统也提供了多种编辑方法辅助
+   （2）实验结果
+                                                                      用户高效快速编辑人体模型（图 4）。一种方法是将
+    为验证生成效果，本文采用以下三种指标进行
+评 估 ：① 峰 值 信 噪 比（Peak Signal ⁃ to ⁃ Noise Ratio,                      角色模型的多视角图片交给视觉模型进行部位分
+
+PSNR），测量重演图像与真实图像之间的误差，评估                                             割，并针对图片整体及各个部位生成文字描述。之
+
+重建的整体质量，PSNR 值越高，表明生成的模型越                                             后 ，将 文 字 描 述 及 用 户 想 要 编 辑 部 位 一 同 输 入 给
+
+真实；②结构相似性指数（Structural Similarity Index,                              DeepSeek 模 型 ，针 对 用 户 需 求 生 成 并 调 整 提 示 词
+
+SSIM），从亮度、对比度、结构三方面评估两幅图像的                                           （Prompt）。最后，将提示词和图片输入扩散模型进
+
+相似性，值越高表明生成的图像更真实；③学习感知                                               行图片编辑，并在修改的同时对角色模型进行优化
+
+图 像 块 相 似 度（Learned Perceptual Image Patch Simi⁃                      和调整。由于扩散模型可能会使图像产生不可控制
+larity, LPIPS），基于深度学习模型提取图像特征，计                                       的变化，我们也提供了局部编辑的方法，用户能够使
+算特征空间的距离，衡量图像的感知相似度，值越低                                               用局部框选工具来选择参数化人体模型的顶点，通
+证明人眼感知上更像真实图像。这三种评价指标通                                                过变换顶点映射的三维高斯点，实现对模型的几何
+过量化渲染图像与真实参考图像之间的误差，从不                                                和纹理进行编辑。
+同维度对重建质量进行综合考量，共同构成了对本                                                      3.3 系统应用
+文模型精度的全面评估体系。测试用的数据集为                                                       在电影制作领域，本文提出的系统具有显著优
+PeopleSnapshot，是目前主流方法常用的测试数据集，                                       势，该系统不仅能生成目标角色，并且在高效生成的
+其包含多个单人原地旋转的视频，通过使用手机在                                                基 础 上 创 新 性 地 提 供 了 多 种 编 辑 方 式 ，搭 配 使 用
+非实验室环境中拍摄，符合主流应用环境。本文与                                                DeepSeek 模型可进一步降低用户操作难度，提供更
+目 前 效 果 最 好 的 方 法 InstantAvatar[18] 和 3DGS ⁃ Ava⁃                     加友好的交互方式。
+tar[19] 进行比较，实验结果（表 1）表明，本文方法在所                                             如图 5 所示，用户仅需在拍摄好角色视频后上传
+
+
+
+
+                                                图4     单目视频条件下的三维数字人编辑流程图
+
+
+                                                                - 17 -
+                 No.8/2025   ADVANCED MOTION PICTURE TECHNOLOGY
+现代电影技术                                                            前 沿 技 术
+
+到系统，系统会为用户生成该角色的数字人模型，之                   著降低，并在数据输入复杂性、重建时间方面取得了
+后用户即可使用自然语言为该模型进行不同类型的                    质的飞跃。如前文所述，生成一个高精度、可直接应
+编辑。DeepSeek 模型会分析自然语言，并生成图片               用于工业渲染管线的数字人已变得高效便捷。未
+编辑的提示词，以编辑图片并重新生成模型。为解                    来，通过演员的数字化身，可快速验证其外形是否符
+
+决中小制作团队在独立创建数字人时所面临的高昂                    合剧本要求，并可直接将其嵌入目标场景，借助虚拟
+
+成本与技术壁垒问题，本系统提供了一套极其简化                    预演技术，创作者能够预先调整和评估场景光照，从
+                                          而大幅减少实地踩点、光影调试等环节的资源浪费，
+的解决方案。其直观的文本输入界面与便捷的操作
+                                          显著提升影视制作效率。
+流程，使非专业背景的用户也能够快速、高效地对数
+                                              这类技术的应用不仅优化了传统制作流程，还
+字人模型进行编辑与迭代。例如，编剧可通过简单
+                                          为创作团队提供了更加灵活的创意表达方式。通过
+的文本描述来编辑模型以确认角色的服饰和道具。
+                                          虚拟化手段，创作者可在前期阶段快速迭代方案，避
+这不仅能加快电影制作速度，还能提升电影整体质
+                                          免后期调整带来的高昂成本。同时，数字化身的实
+量。同时，相较于传统的数字人制作，采用该系统则
+                                          时反馈能力也让团队能够更直观地调整角色与场景
+不再需要耗费数天，创建一个数字人仅需 30 分钟，通                的契合度，确保最终作品的高质量呈现。这种效率
+过素材库进行编辑，可实现和建模软件一样实时编                    与灵活性的结合，正在为影视制作行业带来前所未
+辑与“所见即所得”。                                有的变革。
+                                              4.2 提高素材生产效率
+                                              在影视制作领域，虚拟角色的生成和编辑一直
+                                          是电影数字资产的重要组成部分。从文字描述到画
+                                          稿，再到三维建模，每一步都需耗费大量时间和人
+                                          力。然而，随着大语言模型与三维数字人生成模型
+                                          的飞速发展，这一流程正被彻底重塑。如今，通过
+                                          DeepSeek 和 3DTopia 等先进工具对创作需求的深度
+                                          解析，创作人员的需求可被精准转化为数字模型的
+  图5   单目视频条件下的三维数字人生成和编辑系统演示             输入参数。这种技术不仅能够快速生成虚拟角色的
+
+   4 三维数字人技术对影视制作的影响                      草稿，还能在短时间内迭代优化，直至产出高质量的
+                                          成品模型。整个过程大幅减少了传统美术流程中的
+  当前短视频平台上有较多用户使用单图或稀疏
+                                          冗余环节，将创作效率提升至前所未有的高度，通过
+视图的生成方式快速创建数字化身（Digital Avatar），
+                                          深度结合多种 AI 工具，创作者们也能够以较低门槛
+为自己的视频创作特定元素，获得了较好的用户反
+                                          快速参与到技术迭代中。美术人员也可从繁琐的重
+响。如使用 Viggle AI 快速创建动画化身，可实现在
+                                          复性劳动中解放，将更多精力投入到创意本身。
+几分钟内创建出个性化数字人的舞蹈视频；而今年
+                                              4.3 激发小成本影视制作活力
+春晚舞台上的《笔走龙蛇》更是采用了类似数字人重
+                                              随着数字人和虚拟角色生成技术的普及，制作
+建技术，通过多视角拍摄，快速生成包含 4D 时序信                 成本的显著降低使越来越多的创作者能够通过虚拟
+息的三维场景，这也表明了采用 AI 技术能大幅提高                 化手段构建更加丰富的世界。中小成本剧组也能够
+影视制作效率[41]。本节将从以下三个主要方向探讨                 借此突破传统制作的局限，通过使用丰富的虚拟角
+三维数字人技术对未来影视制作的影响。                        色素材，结合文本生成动作模型，能够在有限的成本
+  4.1 优化前期制作流程                            下，让创作者能够轻松构建复杂的场景，如繁忙的街
+  随着技术的不断进步，数字人的创建成本已显                    景或人山人海的演唱会现场。而这些群体动画在传
+
+                                    - 18 -
+                                               No.8/2025         ADVANCED MOTION PICTURE TECHNOLOGY
+现代电影技术                                                                                                                                        前 沿 技 术
+
+统制作中往往需要极高的成本和资源投入。如今，                                                               sion and Pattern Recognition, 2022: 15893⁃15903.
+                                                                                          [9] LI Z, ZHENG Z, LIU Y, et al. Posevocab: Learning joint⁃structured pose em⁃
+数字人技术的引入不仅降低了制作门槛，还为创意
+                                                                                     beddings for human avatar modeling[C]//ACM Special Interest Group on Computer
+表达提供了更广阔的空间。                                                                         Graphics and Interactive Techniques 2023 conference proceedings, 2023: 1⁃11.
+
+         5 结语                                                                             [10] LI Z, ZHENG Z, WANG L, et al. Animatable Gaussians: Learning pose⁃de⁃
+                                                                                     pendent gaussian maps for high ⁃ fidelity human avatar modeling[C]//Proceedings of
+       尽管近年来 AI 技术的应用使三维数字人生成和
+                                                                                     the IEEE/CVF Conference on Computer Vision and Pattern Recognition, 2024:
+编辑取得了显著进展，但其在电影制作领域的应用                                                               19711⁃19722.
+仍面临诸多挑战，在一定程度上限制了其在电影制                                                                    [11] CHEN Y, ZHENG Z, LI Z, et al. Mesh Avatar: Learning high⁃quality trian⁃
+
+作全流程中的普及与推广。例如，当前能够完全兼                                                               gular human avatars from multi ⁃ view videos[C]//European Conference on Computer
+                                                                                     Vision, Cham: Springer Nature Switzerland, 2024: 250⁃269.
+容工业渲染管线的技术较少，且生成的人体模型缺
+                                                                                          [12] CHEN J, HU J, WANG G, et al. TaoAvatar: Real⁃Time Lifelike Full⁃Body
+乏直接编辑性，使技术的实际应用受到制约。为应                                                               Talking Avatars for Augmented Reality via 3D Gaussian Splatting[C]//Proceedings of
+对这些挑战，本文提出的单目视频条件下的三维数                                                               the Computer Vision and Pattern Recognition Conference, 2025: 10723⁃10734.
+
+字人生成和编辑系统，通过优化算法和模型架构，不                                                                   [13] ZHENG Y, ZHAO Q, YANG G, et al. Physavatar: Learning the physics of
+                                                                                     dressed 3d avatars from visual observations[C]//European Conference on Computer
+仅能够高效生成适用于现有渲染管线的数字人模
+                                                                                     Vision, Cham: Springer Nature Switzerland, 2024: 262⁃284.
+型，还为用户提供了丰富的编辑功能，进一步增强了                                                                   [14] PENG S, ZHANG Y, XU Y, et al. Neural body: Implicit neural representa⁃
+系统的实用性和灵活性。这一创新系统为电影制作                                                               tions with structured latent codes for novel view synthesis of dynamic humans[C]//
+
+中的数字人应用提供了更高效、更便捷的解决方案。                                                              Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recogni⁃
+                                                                                     tion, 2021: 9054⁃9063.
+展望未来，随着 AI 技术的持续突破与创新，数字人生
+                                                                                          [15] WENG C Y, CURLESS B, SRINIVASAN P P, et al. Humannerf: Free⁃view⁃
+成和编辑技术将在电影制作领域释放更大潜能，不                                                               point rendering of moving people from monocular video[C]//Proceedings of the IEEE/
+
+仅能显著提升创作效率、降低制作成本，更能为电影                                                              CVF Conference on Computer Vision and Pattern Recognition, 2022: 16210⁃16220.
+                                                                                          [16] CHEN J, ZHANG Y, KANG D, et al. Animatable neural radiance fields
+艺术创作开辟全新的表达维度和创意空间，推动电
+                                                                                     from monocular rgb videos[EB/OL]. (2021⁃06⁃25)[2025⁃07⁃21]. https://arxiv.org/abs/
+影艺术形式的革新与突破。❖
+                                                                                     2106.13629.
+                                                                                          [17] MÜLLER T, EVANS A, SCHIED C, et al. Instant neural graphics primi⁃
+      参考文献                                                                           tives with a multiresolution hash encoding[J]. ACM Transactions on Graphics , 2022,
+     [1] 洪阳 . 高保真虚拟数字人的表示与重建[D]. 中国科学技术大学,2022.                                      41(4): 1⁃15.
+DOI:10.27517/d.cnki.gzkju.2022.000779.                                                    [18] JIANG T, CHEN X, SONG J, et al. InstantAvatar: Learning avatars from
+     [2] 王 春 水 . 人 工 智 能 技 术 的 发 展 及 其 对 影 视 制 作 的 影 响 [J]. 影 视 制 作 ,                monocular video in 60 seconds[C]//Proceedings of the IEEE/CVF Conference on
+2023,29(10):13⁃21.                                                                   Computer Vision and Pattern Recognition, 2023: 16922⁃16932.
+     [3] DEBEVEC P, HAWKINS T, TCHOU C, et al. Acquiring the reflectance                  [19] QIAN Z, WANG S, MIHAJLOVIC M, et al. 3DGS⁃Avatar: Animatable ava⁃
+field of a human face[C]//Proceedings of the 27th annual conference on Computer      tars via deformable 3d gaussian splatting[C]//Proceedings of the IEEE/CVF Confer⁃
+graphics and interactive techniques, 2000: 145⁃156.                                  ence on Computer Vision and Pattern Recognition, 2024: 5020⁃5030.
+
+     [4] USC Institute for Creative Technologies. Light Stage X [EB/OL] .(2022⁃03⁃        [20] HU L, ZHANG H, ZHANG Y, et al. Gaussianavatar: Towards realistic hu⁃
+
+01) [2025⁃07⁃13]. https://vgl.ict.usc.edu/LightStages/.                              man avatar modeling from a single video via animatable 3d gaussians[C]//Proceed⁃
+
+     [5] GHOSH A, HAWKINS T, PEERS P, et al. Practical modeling and acqui⁃           ings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition,
+
+sition of layered facial reflectance[J]. ACM Transactions on Graphics, 2011, 30      2024: 634⁃644.
+
+(6): 1⁃10.                                                                                [21] SHAO Z, WANG Z, LI Z, et al. Splatting Avatar: Realistic real⁃time human
+
+     [6] GRAHAM P, TUNWATTANAPONG B, BUSCH J, et al. Production facial               avatars with mesh ⁃ embedded gaussian splatting[C]//Proceedings of the IEEE/CVF
+
+capture and solving at scale[C]//ACM Special Interest Group on Computer Graphics     Conference on Computer Vision and Pattern Recognition, 2024: 1606⁃1616.
+
+and Interactive Techniques 2019 Courses, 2019:1⁃60.                                       [22] MOON G, SHIRATORI T, SAITO S. Expressive whole ⁃ body 3D gaussian
+
+     [7] VLASIC D, PEERS P, BARAN I, et al. Dynamic shape capture using multi⁃       avatar[C]//European Conference on Computer Vision, Cham: Springer Nature Switzer⁃
+
+view photometric stereo[M]//ACM Special Interest Group on Computer Graphics and      land, 2024: 19⁃35.
+
+Interactive Techniques Asia 2009 papers, 2009: 1⁃11.                                      [23] XIU Y, YE Y, LIU Z, et al. PuzzleAvatar: Assembling 3d avatars from per⁃
+
+     [8] ZHENG Z, HUANG H, YU T, et al. Structured local radiance fields for hu⁃     sonal albums[J]. ACM Transactions on Graphics , 2024, 43(6): 1⁃15.
+
+man avatar modeling[C]//Proceedings of the IEEE/CVF Conference on Computer Vi⁃            [24] LOPER M, MAHMOOD N, ROMERO J, et al. SMPL: A skinned multi⁃per⁃
+
+
+                                                                              - 19 -
+                                               No.8/2025           ADVANCED MOTION PICTURE TECHNOLOGY
+现代电影技术                                                                                                                                             前 沿 技 术
+son linear model[M]//Seminal Graphics Papers: Pushing the Boundaries, Volume 2,        42(6): 1⁃18.
+2023: 851⁃866.                                                                              [35] SUNAGAD B, ZHU H, MENDIRATTA M, et al. TEDRA: Text⁃based Edit⁃
+     [25] PAVLAKOS G, CHOUTAS V, GHORBANI N, et al. Expressive body cap⁃               ing of Dynamic and Photoreal Actors[EB/OL]. (2024 ⁃ 08 ⁃ 28) [2025 ⁃ 07 ⁃ 21]. https://
+ture: 3d hands, face, and body from a single image[C]//Proceedings of the IEEE/CVF     arxiv.org/abs/2408.15995.
+Conference on Computer Vision and Pattern Recognition, 2019: 10975⁃10985.                   [36] XIAO J, ZHANG Q, XU Z, et al. Neca: Neural customizable human avatar
+     [26] MA Q, SAITO S, YANG J, et al. SCALE: Modeling clothed humans with a          [C]//Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Rec⁃
+surface codec of articulated local elements[C]//Proceedings of the IEEE/CVF Confer⁃    ognition, 2024: 20091⁃20101.
+ence on Computer Vision and Pattern Recognition, 2021: 16082⁃16093.                         [37] FENG Y, LIU W, BOLKART T, et al. Learning disentangled avatars with
+     [27] CORONA E, PUMAROLA A, ALENYA G, et al. Smplicit: Topology⁃aware              hybrid 3d representations[EB/OL]. (2023⁃09⁃12)[2025⁃07⁃21]. https://arxiv.org/abs/
+generative model for clothed people[C]//Proceedings of the IEEE/CVF conference on      2309.06441.
+computer vision and pattern recognition, 2021: 11875⁃11885.                                 [38] LIN S, LI Z, SU Z, et al. Layga: Layered gaussian avatars for animatable
+    [28] XIU Y, YANG J, CAO X, et al. ECON: Explicit clothed humans optimized          clothing transfer[C]//ACM Special Interest Group on Computer Graphics and Interac⁃
+via normal integration[C]//Proceedings of the IEEE/CVF Conference on Computer Vi⁃      tive Techniques 2024 Conference Papers, 2024: 1⁃11.
+sion and Pattern Recognition, 2023: 512⁃523.                                                [39] HO H I, XUE L, SONG J, et al. Learning locally editable virtual humans
+    [29] ZHANG Z, YANG Z, YANG Y. Sifu: Side⁃view conditioned implicit func⁃           [C]//Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Rec⁃
+tion for real⁃world usable clothed human reconstruction[C]//Proceedings of the IEEE/   ognition, 2023: 21024⁃21035.
+CVF Conference on Computer Vision and Pattern Recognition, 2024: 9936⁃9947.                 [40] ZHANG W, YAN Y, LIU Y, et al. E 3Gen: Efficient, Expressive and Edit⁃
+    [30] HUANG Y, YI H, XIU Y, et al. Tech: Text⁃guided reconstruction of lifelike     able Avatars Generation[C]//Proceedings of the 32nd ACM International Conference
+clothed humans[C]//2024 International Conference on 3D Vision, 2024: 1531⁃1542.        on Multimedia, 2024: 6860⁃6869.
+    [31] QIU L, GU X, LI P, et al. LHM: Large Animatable Human Reconstruction               [41] 诸杏娟 . 这届春晚开始拼技术了！AI 大模型绝美定格、机器人扭秧
+Model from a Single Image in Seconds[EB/OL]. (2025⁃03⁃18)[2025⁃07⁃21]. https://        歌 ，云 使 用 量 达 历 年 之 最 [EB/OL].(2025⁃01⁃29) [2025⁃07⁃13]. https://www.163.
+arxiv.org/abs/2503.10625.                                                              com/dy/article/JN2TK8L405566ZHB.html.
+    [32] ZHUANG Y, LV J, WEN H, et al. IDOL: Instant Photorealistic 3D Human
+Creation from a Single Image[EB/OL]. (2024⁃12⁃19)[2025⁃07⁃21]. https://arxiv.org/
+abs/2412.14963.                                                                        作者贡献声明：
+    [33] LIAO T, YI H, XIU Y, et al. Tada! text to animatable digital avatars[C]//          李梦甜：论文框架设计，修订论文，全文文字贡献 45%；
+2024 International Conference on 3D Vision, 2024: 1508⁃1519.                                姚声祥：撰写和修订论文，全文文字贡献 45%；
+    [34] MENDIRATTA M, PAN X, ELGHARIB M, et al. Avatarstudio: Text⁃driven
+                                                                                            杨洋：修订论文，全文文字贡献 10%。
+editing of 3d dynamic human head avatars[J]. ACM Transactions On Graphics, 2023,
+
+
+
+
+3D digital human generation and editing system for film production: Design
+and application
+
+◎ LI Mengtian (Shanghai Film Academy, Shanghai University; Shanghai Engineering Research Center of Motion Picture Special Ef‐
+fects)
+◎ YAO Shengxiang, YANG Yang (Shanghai Film Academy, Shanghai University)
+
+Abstract: We introduce a novel system for the rapid generation and editing of digital humans from monocular video, de⁃
+signed to overcome the significant bottlenecks of high cost and long production cycles found in traditional workflows . Our
+approach is built upon 3D Gaussian splatting, capitalizing on its high⁃efficiency rendering and inherent editability. The re⁃
+sulting pipeline enables users to quickly produce high⁃fidelity avatars, intelligently segment and archive the underlying as⁃
+sets, and immediately proceed to intuitive, flexible editing. Our experiments confirm that the system accelerates the produc⁃
+tion of digital humans and minimizes reliance on specialized hardware and expertise. The findings indicate that an inte⁃
+grated generation and editing pipeline is a viable strategy for making digital human creation more efficient and cost⁃effec ⁃
+tive for the film industry. Furthermore, our approach facilitates the development of extensive 3D asset libraries and empow⁃
+ers high⁃quality visual effects production, even for films with limited budgets.
+Keywords: Digital Human; Artificial Intelligence; Film Production; Neural Radiance Field; 3D Gaussian Splatting; DeepSeek
+
+
+
+                                                                                - 20 -
+

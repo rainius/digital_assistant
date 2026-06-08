@@ -14,8 +14,8 @@ module.exports = defineConfig({
       },
       // 新增ASR代理
       "/api/asr": {
-        // target: "http://192.168.1.168:9999",
-        target: "http://localhost:9999",
+        target: "http://192.168.1.168:9999",
+        // target: "http://localhost:9999",
         changeOrigin: true,
         pathRewrite: { "^/api/asr": "/api/v1/asr" },
         logLevel: "debug",

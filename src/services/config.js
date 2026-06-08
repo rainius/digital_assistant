@@ -26,7 +26,7 @@ export const ENV = Object.freeze({
   // ==================== LLM ====================
   LLM_PROVIDER: pick('VUE_APP_LLM_PROVIDER', 'dify'),
   LLM_URL: pick('VUE_APP_LLM_URL', 'http://192.168.1.168/v1/chat-messages'),
-  LLM_API_KEY: pick('VUE_APP_LLM_API_KEY', 'app-SzWFJDVQBdNbNP0DrPmu98df'),
+  LLM_API_KEY: pick('VUE_APP_LLM_API_KEY', 'app-MgDwAtResNzTPxtTmmxlKdd3'),
   LLM_USER_ID: pick('VUE_APP_LLM_USER_ID', 'digitalhuman-001'),
   LLM_BOT_ID: pick('VUE_APP_LLM_BOT_ID', ''),    // 仅 Coze 用
 

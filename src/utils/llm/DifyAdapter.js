@@ -18,6 +18,7 @@ export class DifyAdapter {
     if (this.conversationId) requestBody.conversation_id = this.conversationId;
 
     console.log('Dify请求参数：', this.apiUrl);
+    console.log('Dify key：', this.apiKey);
     const response = await fetch(this.apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKey}` },

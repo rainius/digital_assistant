@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 460" font-family="'PingFang SC','Microsoft YaHei','SimHei',sans-serif">
+  <defs>
+    <marker id="arr2" markerWidth="10" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#334155"/>
+    </marker>
+    <marker id="arrLight" markerWidth="9" markerHeight="7" refX="5" refY="3.5" orient="auto">
+      <path d="M0,0 L9,3.5 L0,7 Z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+
+  <text x="500" y="34" text-anchor="middle" font-size="18" font-weight="700" fill="#1e293b">图 2　交互流水线时序</text>
+  <text x="500" y="56" text-anchor="middle" font-size="12" fill="#64748b">四个环节在保证因果关系的前提下时间重叠，由此摊薄首字延迟</text>
+
+  <!-- 时间轴 -->
+  <line x1="200" y1="380" x2="940" y2="380" stroke="#334155" stroke-width="1.5" marker-end="url(#arr2)"/>
+  <text x="950" y="384" font-size="12" fill="#334155">时间</text>
+  <text x="200" y="402" font-size="11" fill="#64748b">用户提问完成</text>
+  <text x="940" y="402" text-anchor="end" font-size="11" fill="#64748b">数字人讲述结束</text>
+
+  <!-- 行：标签列 -->
+  <text x="40" y="118" font-size="13" font-weight="600" fill="#1e293b">语音识别</text>
+  <text x="40" y="135" font-size="11" fill="#64748b">SenseVoice</text>
+
+  <text x="40" y="188" font-size="13" font-weight="600" fill="#1e293b">对话生成</text>
+  <text x="40" y="205" font-size="11" fill="#64748b">Dify · 流式输出</text>
+
+  <text x="40" y="258" font-size="13" font-weight="600" fill="#1e293b">语音合成</text>
+  <text x="40" y="275" font-size="11" fill="#64748b">GPT-SoVITS</text>
+
+  <text x="40" y="328" font-size="13" font-weight="600" fill="#1e293b">形象驱动</text>
+  <text x="40" y="345" font-size="11" fill="#64748b">Live2D / LiveTalking</text>
+
+  <!-- 行的底纹 -->
+  <rect x="200" y="92" width="740" height="56" fill="#f8fafc" stroke="#e2e8f0"/>
+  <rect x="200" y="162" width="740" height="56" fill="#f8fafc" stroke="#e2e8f0"/>
+  <rect x="200" y="232" width="740" height="56" fill="#f8fafc" stroke="#e2e8f0"/>
+  <rect x="200" y="302" width="740" height="56" fill="#f8fafc" stroke="#e2e8f0"/>
+
+  <!-- ASR 色条 -->
+  <rect x="208" y="106" width="120" height="28" rx="4" fill="#3b82f6" opacity="0.85"/>
+  <text x="268" y="125" text-anchor="middle" font-size="11" fill="#ffffff">ASR</text>
+
+  <!-- 对话生成色条 -->
+  <rect x="332" y="176" width="380" height="28" rx="4" fill="#16a34a" opacity="0.85"/>
+  <text x="522" y="195" text-anchor="middle" font-size="11" fill="#ffffff">流式生成（首句 → 中段 → 末句）</text>
+
+  <!-- TTS 色条（按句切分，三段） -->
+  <rect x="392" y="246" width="100" height="28" rx="4" fill="#d97706" opacity="0.85"/>
+  <text x="442" y="265" text-anchor="middle" font-size="11" fill="#ffffff">合成 S1</text>
+
+  <rect x="496" y="246" width="120" height="28" rx="4" fill="#d97706" opacity="0.85"/>
+  <text x="556" y="265" text-anchor="middle" font-size="11" fill="#ffffff">合成 S2</text>
+
+  <rect x="620" y="246" width="120" height="28" rx="4" fill="#d97706" opacity="0.85"/>
+  <text x="680" y="265" text-anchor="middle" font-size="11" fill="#ffffff">合成 S3</text>
+
+  <!-- 形象驱动色条 -->
+  <rect x="450" y="316" width="106" height="28" rx="4" fill="#9333ea" opacity="0.85"/>
+  <text x="503" y="335" text-anchor="middle" font-size="11" fill="#ffffff">播报 S1</text>
+
+  <rect x="558" y="316" width="126" height="28" rx="4" fill="#9333ea" opacity="0.85"/>
+  <text x="621" y="335" text-anchor="middle" font-size="11" fill="#ffffff">播报 S2</text>
+
+  <rect x="686" y="316" width="148" height="28" rx="4" fill="#9333ea" opacity="0.85"/>
+  <text x="760" y="335" text-anchor="middle" font-size="11" fill="#ffffff">播报 S3</text>
+
+  <!-- 关键时点：首字延迟标注 -->
+  <line x1="208" y1="76" x2="208" y2="380" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3,3"/>
+  <line x1="450" y1="76" x2="450" y2="380" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <text x="208" y="86" font-size="11" fill="#475569" text-anchor="middle">提问</text>
+  <text x="450" y="86" font-size="11" fill="#475569" text-anchor="middle">首字播报</text>
+
+  <line x1="208" y1="80" x2="450" y2="80" stroke="#dc2626" stroke-width="1.2" marker-end="url(#arrLight)"/>
+  <text x="329" y="74" text-anchor="middle" font-size="11" font-weight="600" fill="#dc2626">端到端首字延迟</text>
+
+  <!-- 因果衔接虚线箭头 -->
+  <line x1="328" y1="148" x2="332" y2="176" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#arrLight)"/>
+  <line x1="392" y1="218" x2="392" y2="246" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#arrLight)"/>
+  <line x1="492" y1="218" x2="496" y2="246" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#arrLight)"/>
+  <line x1="616" y1="218" x2="620" y2="246" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#arrLight)"/>
+
+  <line x1="492" y1="288" x2="450" y2="316" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#arrLight)"/>
+  <line x1="616" y1="288" x2="558" y2="316" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#arrLight)"/>
+  <line x1="740" y1="288" x2="686" y2="316" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#arrLight)"/>
+
+  <text x="500" y="430" text-anchor="middle" font-size="11" fill="#64748b">注：S1/S2/S3 为对话流式输出按标点切出的相邻句子；段级形象方案下合成与播报合并为一段，整体重叠模式不变。</text>
+</svg>
