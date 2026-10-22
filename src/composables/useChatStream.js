@@ -21,6 +21,7 @@
 import { ref } from 'vue';
 import { cleanTextForTTS, cleanTextForParagraphTTS } from '@/utils/text/cleanTextForTTS';
 import { containsSentenceEnd } from '@/utils/text/sentenceSplitter';
+import { tracer } from '@/tracing/tracer';
 
 export function useChatStream({ llm, onSentence, onParagraph, initialMessages = [] }) {
   const messages = ref(
@@ -67,6 +68,8 @@ export function useChatStream({ llm, onSentence, onParagraph, initialMessages = 
             return;
           }
 
+          tracer.mark('t2_llm_first_chunk');  // 首字到达(内部只记首次)
+
           // 1. 更新 UI
           messages.value[aiMsgIndex].content += chunk;
 
@@ -78,6 +81,7 @@ export function useChatStream({ llm, onSentence, onParagraph, initialMessages = 
           if (containsSentenceEnd(chunk)) {
             const cleanedSentence = cleanTextForTTS(sentenceBuffer);
             if (cleanedSentence) {
+              tracer.mark('t3_first_sentence');  // 首个整句就绪
               onSentence?.(cleanedSentence);
             }
             sentenceBuffer = '';
@@ -92,6 +96,12 @@ export function useChatStream({ llm, onSentence, onParagraph, initialMessages = 
           }
 
           isThinking.value = false;
+
+          // 把完整回答文本写入埋点
+          const fullAnswer = messages.value[aiMsgIndex].content;
+          if (fullAnswer) {
+            tracer.content(fullAnswer);
+          }
 
           // 检查缓冲区是否有"漏网之鱼"(最后一句话没标点)
           if (sentenceBuffer.trim().length > 0) {

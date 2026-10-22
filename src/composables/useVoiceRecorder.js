@@ -16,6 +16,7 @@
  * <button @click="recorder.toggle">{{ recorder.isRecording ? '停止' : '开始' }}</button>
  */
 import { ref, onUnmounted } from 'vue';
+import { tracer } from "@/tracing/tracer";
 
 export function useVoiceRecorder({ asr, onText }) {
   const isRecording = ref(false);
@@ -41,8 +42,13 @@ export function useVoiceRecorder({ asr, onText }) {
       isRecording.value = false;
       isRecognizing.value = true;
 
+      //埋点
+      tracer.begin();
+      tracer.mark('t0_speech_end');         // 用户结束说话
+
       try {
         const text = await asr.stopAndRecognize();
+        tracer.mark('t1_asr_return');         // 识别结果返回
         if (text) {
           onText?.(text); // 通知上层
         }

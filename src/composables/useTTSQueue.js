@@ -13,6 +13,7 @@
  * ttsQueue.stop(); // 清空队列并释放资源
  */
 import { ref, onUnmounted } from 'vue';
+import { tracer } from '@/tracing/tracer';
 
 export function useTTSQueue({ tts, avatar }) {
   const queue = [];
@@ -32,6 +33,7 @@ export function useTTSQueue({ tts, avatar }) {
       // 文本驱动型适配器（如 LiveTalking）不需要外部 TTS，跳过合成
       const skipTTS = avatar?.value && avatar.value.needsTTS === false;
       const audioUrl = skipTTS ? null : await tts.fetchAudio(sentence);
+      if (!skipTTS) tracer.mark('t4_tts_first_return');  // 首段音频就绪
 
       if (stopped) return;
       if (!skipTTS && !audioUrl) return;
@@ -55,6 +57,7 @@ export function useTTSQueue({ tts, avatar }) {
     try {
       const skipTTS = avatar?.value && avatar.value.needsTTS === false;
       const audioUrl = skipTTS ? null : await tts.fetchAudio(paragraph);
+      if (!skipTTS) tracer.mark('t4_tts_first_return');
 
       if (stopped) return;
       if (!skipTTS && !audioUrl) return;

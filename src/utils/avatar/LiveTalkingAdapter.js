@@ -4,6 +4,8 @@
  * 通过 /offer 建立 WebRTC 视频连接，通过 /human 发送文本驱动数字人播报。
  * 文本由我们自己的 GPT-SoVITS 流水线生成，LiveTalking 仅负责口型渲染。
  */
+import { tracer } from '@/tracing/tracer';
+
 export class LiveTalkingAdapter {
   needsTTS = false; // LiveTalking 通过 /human 文本接口驱动，不需要外部 TTS 音频
   streamMode = 'paragraph'; // 服务端有自己的句队列，整段一次性发过去更顺滑
@@ -47,7 +49,23 @@ export class LiveTalkingAdapter {
       // 音频和视频共享同一个 MediaStream，srcObject 设一次即可
       if (this.videoEl.srcObject !== event.streams[0]) {
         this.videoEl.srcObject = event.streams[0];
+        // 首个远端轨道就绪 ≈ 首帧准备开始渲染。
+        // 由 tracer 内部"只记首次"保证每轮只打一次。
+        // if (event.track.kind === 'video') tracer.mark('t5_play_start');
       }
+
+      // 首次拿到音频轨时,挂 AnalyserNode 用于 t5 能量检测
+      if (event.track.kind === 'audio' && !this._analyser) {
+        this._audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const src = this._audioCtx.createMediaStreamSource(
+          new MediaStream([event.track])
+        );
+        this._analyser = this._audioCtx.createAnalyser();
+        this._analyser.fftSize = 512;
+        src.connect(this._analyser);
+        this._audioBuf = new Uint8Array(this._analyser.fftSize);
+      }
+
       console.log('[LiveTalking] 远端', event.track.kind, '轨道就绪');
     };
 
@@ -101,6 +119,7 @@ export class LiveTalkingAdapter {
     this._speaking = true;
 
     try {
+      const traceId = tracer.current?.id || '';
       const resp = await fetch(`${this.baseUrl}/human`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -108,6 +127,7 @@ export class LiveTalkingAdapter {
           text,
           type: 'echo',
           sessionid: this.sessionId,
+          trace_id: traceId,
         }),
       });
 
@@ -115,12 +135,41 @@ export class LiveTalkingAdapter {
         throw new Error(`[LiveTalking] /human 请求失败: ${resp.status}`);
       }
 
+      // t4_tts_first_return 由服务端在 TTS 首个语音片段生成时埋点,客户端不记
+
+      // 每轮独立监听:等入站音频从静默转为有能量,即为本轮 t5
+      this._watchFirstAudio();
+
       console.log('[LiveTalking] 已发送文本:', text.slice(0, 50));
     } catch (err) {
       console.error('[LiveTalking] speak 出错:', err);
     } finally {
       this._speaking = false;
     }
+  }
+
+  // 一次会话内多次调用:每轮独立监听"音频从静默转为有能量"
+  // 依赖 tracer 每轮 begin() 会重置 marks,故此处直接 mark 即可,不用手动 arm
+  _watchFirstAudio() {
+    if (!this._analyser) return;
+    const armedAt = performance.now();
+    const step = () => {
+      if (!this._analyser) return;
+      this._analyser.getByteTimeDomainData(this._audioBuf);
+      let sum = 0;
+      for (let i = 0; i < this._audioBuf.length; i++) {
+        const d = this._audioBuf[i] - 128;
+        sum += d * d;
+      }
+      const rms = Math.sqrt(sum / this._audioBuf.length);
+      if (rms > 2) {
+        tracer.mark('t5_play_start');
+        return;
+      }
+      if (performance.now() - armedAt > 5000) return;  // 兜底,不无限循环
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
   }
 
   // ==================== 3. 表情 ====================
@@ -153,6 +202,12 @@ export class LiveTalkingAdapter {
 
   destroy() {
     this._speaking = false;
+    if (this._audioCtx) {
+      this._audioCtx.close();
+      this._audioCtx = null;
+      this._analyser = null;
+      this._audioBuf = null;
+    }
     if (this.pc) {
       this.pc.close();
       this.pc = null;

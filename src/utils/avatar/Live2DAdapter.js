@@ -2,6 +2,8 @@
  * Live2D 适配器
  * 封装 PIXI 和 pixi-live2d-display 的底层逻辑
  */
+import { tracer } from '@/tracing/tracer';
+
 export class Live2DAdapter {
   needsTTS = true;  // Live2D 需要外部 TTS 提供音频才能驱动口型
   streamMode = 'sentence'; // 一句话合一次音频驱动口型，越早越好
@@ -42,10 +44,10 @@ export class Live2DAdapter {
     try {
       this.model = await window.PIXI.live2d.Live2DModel.from(this.modelPath, { autoInteract: true });
       this.model.position.set(0, 0);
-      
+
       const scale = Math.min(container.clientWidth / this.model.width, container.clientHeight / this.model.height);
       this.model.scale.set(scale);
-      
+
       this.app.stage.addChild(this.model);
       console.log("Live2D 模型挂载成功");
     } catch (e) {
@@ -56,12 +58,13 @@ export class Live2DAdapter {
   // 2. 说话与嘴型同步
   async speak(audioUrl /* , text */) {
     if (!this.model) return;
+    tracer.mark('t5_play_start');
     return new Promise((resolve) => {
       // 调用 Live2D 内置的音频唇形同步方法
       this.model.speak(audioUrl, {
-        volume: 1, 
+        volume: 1,
         expression: this.emotionMap['happy'], // 说话时可以默认带个微笑表情
-        resetExpression: true, 
+        resetExpression: true,
         crossOrigin: "anonymous",
         onFinish: resolve,
         onError: resolve

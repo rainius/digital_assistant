@@ -204,6 +204,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick));
 /** Markdown 渲染 */
 function renderMarkdown(text) {
   if (!text) return '';
+  marked.setOptions({ breaks: true });
   return marked.parse(text);
 }
 
@@ -306,7 +307,7 @@ defineExpose({ focus, scrollToBottom });
 }
 
 .message {
-  font-size: 0.95rem;
+  font-size: 1.5rem;
   line-height: 1.6;
   word-wrap: break-word;
   animation: slideUp 0.3s ease;

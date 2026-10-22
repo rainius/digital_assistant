@@ -146,6 +146,7 @@ const toggleVoiceRecording = () => recorder.toggle();
 
 // AI 面板发送
 const handleAISend = async (text) => {
+  inputText.value = '';
   await chat.send(text);
 };
 

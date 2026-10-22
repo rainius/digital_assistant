@@ -2,19 +2,34 @@
  * 应用级运行时配置中心。
  *
  * 项目使用 Vue CLI 5 (webpack),环境变量必须以 `VUE_APP_` 开头,
- * 编译期通过 `process.env.VUE_APP_XXX` 注入。请配合根目录 `.env.local`
- * 使用,密钥不要提交到仓库。
+ * 编译期通过 DefinePlugin 替换 `process.env.VUE_APP_XXX` 为字符串字面量。
  *
- * 任意一项未配置时,回落到与重构前组件中硬编码完全一致的默认值,
- * 确保未填 .env 也能跑(便于平滑迁移)。
+ * **注意**: 必须直接访问 `process.env.VUE_APP_XXX`,不能用 `env[key]`
+ * 动态属性名——后者 webpack 无法在编译期追溯,会恒返回 undefined。
  */
 
-const env = (typeof process !== 'undefined' && process.env) ? process.env : {};
-
-/** 取环境变量,fallback 到默认值 */
+/** 直接取值,webpack DefinePlugin 会在编译期替换为字符串字面量 */
 function pick(key, fallback) {
-  const v = env[key];
-  return (v === undefined || v === null || v === '') ? fallback : v;
+  // webpack 只能替换直接属性访问,不能替换 env[key] 动态键
+  // 因此每个变量必须在这里显式列出
+  switch (key) {
+    case 'VUE_APP_ASR_TYPE':      { const v = process.env.VUE_APP_ASR_TYPE;      return v || fallback; }
+    case 'VUE_APP_ASR_URL':       { const v = process.env.VUE_APP_ASR_URL;       return v || fallback; }
+    case 'VUE_APP_ASR_LANG':      { const v = process.env.VUE_APP_ASR_LANG;      return v || fallback; }
+    case 'VUE_APP_LLM_PROVIDER':  { const v = process.env.VUE_APP_LLM_PROVIDER;  return v || fallback; }
+    case 'VUE_APP_LLM_URL':       { const v = process.env.VUE_APP_LLM_URL;       return v || fallback; }
+    case 'VUE_APP_LLM_API_KEY':   { const v = process.env.VUE_APP_LLM_API_KEY;   return v || fallback; }
+    case 'VUE_APP_LLM_USER_ID':   { const v = process.env.VUE_APP_LLM_USER_ID;   return v || fallback; }
+    case 'VUE_APP_LLM_BOT_ID':    { const v = process.env.VUE_APP_LLM_BOT_ID;    return v || fallback; }
+    case 'VUE_APP_TTS_PROVIDER':  { const v = process.env.VUE_APP_TTS_PROVIDER;  return v || fallback; }
+    case 'VUE_APP_TTS_URL':       { const v = process.env.VUE_APP_TTS_URL;       return v || fallback; }
+    case 'VUE_APP_TTS_REF_AUDIO': { const v = process.env.VUE_APP_TTS_REF_AUDIO; return v || fallback; }
+    case 'VUE_APP_TTS_PROMPT_TEXT':{ const v = process.env.VUE_APP_TTS_PROMPT_TEXT;return v || fallback; }
+    case 'VUE_APP_AVATAR_TYPE':   { const v = process.env.VUE_APP_AVATAR_TYPE;   return v || fallback; }
+    case 'VUE_APP_AVATAR_MODEL':  { const v = process.env.VUE_APP_AVATAR_MODEL;  return v || fallback; }
+    case 'VUE_APP_LIVETALKING_URL':{ const v = process.env.VUE_APP_LIVETALKING_URL;return v || fallback; }
+    default: return fallback;
+  }
 }
 
 export const ENV = Object.freeze({
